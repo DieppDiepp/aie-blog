@@ -37,3 +37,13 @@ Ví dụ: VPS có điều khác lạ cần script riêng, lỗi hay gặp và c�
 - Cách giải: cài `gh` rồi chạy `gh auth login` (người dùng tự làm, nhập token hoặc
   đăng nhập qua trình duyệt). Sau đó git dùng lại thông tin này để push.
 - Lý do: agent không được nhập token thay người dùng. Xác thực phải do chủ máy thực hiện.
+
+### [2026-08-24] Walking skeleton đã chạy xanh lần đầu trong WSL
+
+- Bối cảnh: kiểm chứng `docker compose up --build` cho cả db, api, web trong WSL2.
+- Kết quả: build thành công, cả 3 container Up. `GET /health` ok, `POST /posts` tạo
+  bài và tự sinh slug, `GET /brain` render đúng bài vừa tạo. Xác nhận trọn đường
+  Postgres tới FastAPI tới Next.js tới màn hình.
+- Lưu ý: khi cần script kiểm tra nhiều lệnh trong WSL, viết file `.sh` rồi chạy
+  `wsl bash -lc 'bash <path>'`, tránh truyền lệnh nhiều dòng trực tiếp qua nhiều
+  lớp shell (PowerShell hoặc git-bash bọc ngoài dễ vỡ quote và `$(...)`).
