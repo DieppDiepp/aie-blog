@@ -1,0 +1,10 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+/* Base page surface. Uses the design tokens defined in tokens.css. */
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}

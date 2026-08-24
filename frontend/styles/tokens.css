@@ -1,0 +1,11 @@
+/* Design tokens. Every color is a CSS variable so a dark theme can be added
+   later by defining a second set of values, without touching components. */
+:root {
+  --bg: #fcfcfa;        /* warm paper background (default light "Paper" theme) */
+  --surface: #ffffff;   /* cards and raised panels */
+  --ink: #16181d;       /* primary text */
+  --muted: #6b6f76;     /* secondary text */
+  --hairline: #e7e7e2;  /* thin borders */
+  --accent: #2f5fe0;    /* Refined Blue: links, active node */
+  --accent-hover: #1e40af;
+}
