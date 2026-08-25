@@ -53,3 +53,11 @@ Cập nhật ngay khi thêm hoặc đổi bất kỳ script nào.
 
 - Bảng DB được tạo tự động bằng `create_all` lúc app khởi động.
 - Khi schema ổn định sẽ chuyển sang Alembic migration (chưa làm bây giờ).
+
+## CI/CD
+
+- CI (`.github/workflows/ci.yml`): chạy trên máy ảo của GitHub, KHÔNG đụng VPS.
+  Mỗi push hoặc pull request: check backend (uv sync + import) và frontend (npm build).
+  Mục đích: chặn code hỏng lọt vào `main`.
+- CD (deploy lên VPS): CHƯA làm. Khi làm sẽ cần quyền VPS, secrets (SSH key), và domain.
+  Hướng dự kiến: GitHub Actions build image rồi đẩy lên VPS và chạy `docker compose up`.
