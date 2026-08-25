@@ -33,11 +33,19 @@ Cập nhật ngay khi thêm hoặc đổi bất kỳ script nào.
 - Vì sao: dựng đồng thời db, api, web trong container để giống môi trường thật.
 - Sau khi chạy: web ở http://localhost:3000, api docs ở http://localhost:8000/docs.
 
-### Tạo bài viết đầu tiên để kiểm tra walking skeleton
+### Thêm một bài viết mới (theo ADR-0004)
 
-- Lệnh (PowerShell):
-  `Invoke-RestMethod -Method Post http://localhost:8000/posts -ContentType 'application/json' -Body '{"title":"Bai dau tien","summary":"Chao knowledge graph"}'`
-- Vì sao: bơm dữ liệu để trang /brain có nội dung hiển thị, xác nhận DB tới API tới FE.
+- Tạo thư mục `frontend/content/posts/<slug>/` với file `index.mdx` bên trong.
+- Đầu file cần frontmatter: `title`, `summary`, `date` (YYYY-MM-DD), `tags`
+  (mảng `{label, variant}`, variant là `topic`/`easy`/`mid`/`hard`), và tuỳ
+  chọn `draft: true` nếu chưa muốn xuất hiện ở danh sách bài.
+- Thân bài viết bằng Markdown/MDX ngay dưới frontmatter. Trang chủ, `/brain`
+  và `/brain/[slug]` đọc thẳng từ thư mục này, không qua DB.
+- Xem thử: `docker compose up --build` (hoặc `npm run dev` nếu chạy FE
+  ngoài Docker), rồi mở `/brain/<slug>`.
+- Lưu ý: endpoint `POST /posts` trên backend vẫn còn nhưng FE không đọc DB
+  cho nội dung bài nữa (xem ADR-0004); DB sẽ dùng lại khi làm bước đồng bộ
+  metadata cho tìm kiếm và Knowledge Graph.
 
 ### Dừng hệ thống
 

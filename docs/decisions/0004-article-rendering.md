@@ -1,6 +1,6 @@
 # ADR-0004: Article rendering - mỗi bài là FE tùy biến trong repo
 
-Trạng thái: Accepted. Ngày: 2026-08-25.
+Trạng thái: Accepted, pipeline đã dựng. Ngày: 2026-08-25.
 
 ## Bối cảnh
 
@@ -50,9 +50,30 @@ text. Ràng buộc: tùy biến tự do, an toàn, review được, hợp stack,
   rollback qua git.
 - ADR-0002 được tinh chỉnh, không phủ định: DB vẫn là store chính cho metadata
   và quan hệ Knowledge Graph, chỉ có thân bài bespoke chuyển sang file repo.
-- Việc kế tiếp cần chốt: cấu trúc thư mục content, schema frontmatter, pipeline
-  MDX trong Next, và cơ chế sync frontmatter vào DB.
-- Renderer đọc `body` từ DB ở `/brain/[slug]` hiện tại là tạm thời cho walking
-  skeleton, sẽ chuyển dần sang đọc file MDX.
 - Cộng tác multi-author tương lai đi qua PR trên repo, hoặc thêm editor khi lên
   Hybrid.
+
+## Pipeline đã dựng (2026-08-25)
+
+- Thư viện: `next-mdx-remote/rsc` (render trong Server Component) +
+  `gray-matter` (đọc frontmatter) + `remark-gfm` (bảng, GFM). Không dùng
+  `@next/mdx` vì nội dung nằm ngoài `app/`, cần đọc bằng tay theo slug.
+- Vị trí file: `frontend/content/posts/<slug>/index.mdx` như đã đề xuất.
+  Frontmatter: `title`, `summary`, `date`, `tags` (mảng `{label, variant}`),
+  `draft` (tuỳ chọn, ẩn khỏi danh sách nhưng vẫn xem được qua link thẳng).
+- `frontend/lib/posts.ts` đọc thư mục `content/posts/`, trả `Post[]` cho
+  trang chủ và `/brain`, và một bài cho `/brain/[slug]`.
+- `/brain/[slug]` dùng `generateStaticParams()` nên mọi bài đã publish được
+  build tĩnh (SSG) sẵn lúc `next build`, đúng tinh thần "xuất bản = commit + CI
+  build" ở trên. Bài draft mở bằng link thẳng vẫn render được (on-demand).
+- Bộ component MDX ở `frontend/components/mdx/mdx-components.tsx`: mới có
+  phần tử cơ bản (heading, đoạn văn, danh sách, bảng, code, blockquote, link).
+  Callout/Figure/Chart/Diagram/NodeGraph chưa cần nên chưa dựng, thêm khi có
+  bài thật sự cần.
+- Docker: stage runner của `frontend/Dockerfile` copy thêm `content/` vì thư
+  mục này không nằm trong output "standalone" của Next.
+- Đồng bộ frontmatter vào DB (mục 4) vẫn CHƯA làm, để dành việc kế tiếp khi
+  cần tìm kiếm hoặc dựng Knowledge Graph từ metadata bài.
+- Bài MDX thật đầu tiên: `docker-co-ban-cho-python-dev`. Phần "spot the
+  mistake" tương tác (Phụ lục A/B của bản nháp gốc) CHƯA đưa vào, vẫn theo
+  đúng kế hoạch làm sau khi có infra tương tác phù hợp.

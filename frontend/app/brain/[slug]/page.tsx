@@ -1,37 +1,35 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getPost } from "@/lib/api";
-import type { Post } from "@/lib/types";
+import { MDXRemote } from "next-mdx-remote/rsc";
+import remarkGfm from "remark-gfm";
+import { getAllPosts, getPostBySlug } from "@/lib/posts";
 import { Header } from "@/components/site/Header";
 import { TagList } from "@/components/ui/Tag";
+import { mdxComponents } from "@/components/mdx/mdx-components";
 import { formatLongDate, readingTimeMinutes } from "@/lib/format";
 
 type Params = { params: Promise<{ slug: string }> };
 
-async function loadPost(slug: string): Promise<Post | null> {
-  try {
-    return await getPost(slug);
-  } catch {
-    return null;
-  }
+// Prerender every published post at build time (see ADR-0004: a post ships
+// as a commit and a build, not an on-demand write). A slug outside this
+// list (e.g. a draft opened by direct link) still renders on request.
+export async function generateStaticParams() {
+  const posts = await getAllPosts();
+  return posts.map((post) => ({ slug: post.slug }));
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
-  const post = await loadPost(slug);
+  const post = await getPostBySlug(slug);
   return { title: post ? post.title : "Không tìm thấy bài viết" };
 }
 
 export default async function ArticlePage({ params }: Params) {
   const { slug } = await params;
-  const post = await loadPost(slug);
+  const post = await getPostBySlug(slug);
   if (!post) notFound();
 
-  const paragraphs = post.body
-    .split(/\n\s*\n/)
-    .map((block) => block.trim())
-    .filter(Boolean);
   const minutes = readingTimeMinutes(post.body);
   const tags = post.tags ?? [];
 
@@ -72,17 +70,14 @@ export default async function ArticlePage({ params }: Params) {
             <TagList tags={tags} />
           </div>
 
-          {/* body */}
-          <div className="mt-10 space-y-6">
-            {paragraphs.length > 0 ? (
-              paragraphs.map((block, i) => (
-                <p
-                  key={i}
-                  className="text-[18px] leading-[1.78] text-ink-body md:text-[18.5px]"
-                >
-                  {block}
-                </p>
-              ))
+          {/* body, rendered from the post's MDX source */}
+          <div className="mt-4">
+            {post.body ? (
+              <MDXRemote
+                source={post.body}
+                components={mdxComponents}
+                options={{ mdxOptions: { remarkPlugins: [remarkGfm] } }}
+              />
             ) : (
               <p className="text-[18px] leading-[1.78] text-muted">
                 Bài viết này chưa có nội dung.

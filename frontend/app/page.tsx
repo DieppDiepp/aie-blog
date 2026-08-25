@@ -1,17 +1,7 @@
 import Link from "next/link";
-import { getPosts } from "@/lib/api";
-import type { Post } from "@/lib/types";
+import { getAllPosts } from "@/lib/posts";
 import { Header } from "@/components/site/Header";
 import { FeaturedPost, PostRow } from "@/components/post/PostCard";
-
-// The home page renders live posts. Never let a missing API break the page.
-async function safeGetPosts(): Promise<Post[]> {
-  try {
-    return await getPosts();
-  } catch {
-    return [];
-  }
-}
 
 function ArrowRight() {
   return (
@@ -28,7 +18,7 @@ function ArrowRight() {
 }
 
 export default async function Home() {
-  const posts = await safeGetPosts();
+  const posts = await getAllPosts();
   const [featured, ...rest] = posts;
 
   return (
@@ -100,7 +90,7 @@ export default async function Home() {
               {rest.length > 0 && (
                 <div className="mt-1.5">
                   {rest.map((post) => (
-                    <PostRow key={post.id} post={post} />
+                    <PostRow key={post.slug} post={post} />
                   ))}
                 </div>
               )}

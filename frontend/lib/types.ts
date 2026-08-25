@@ -1,13 +1,12 @@
-// Types that mirror the backend response schemas.
+// A post as read from its MDX file (see ADR-0004: content/posts/<slug>/index.mdx
+// is the source of truth). "body" holds the raw MDX source, used both for the
+// reading-time estimate and as the input to the MDX renderer on the article page.
 export type Post = {
-  id: number;
   slug: string;
   title: string;
   summary: string;
   body: string;
   created_at: string;
-  // Tags are not yet served by the API (they arrive with the topics module).
-  // Optional here so components can render them once the data exists.
   tags?: PostTag[];
 };
 

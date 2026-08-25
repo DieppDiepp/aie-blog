@@ -1,19 +1,10 @@
-import { getPosts } from "@/lib/api";
-import type { Post } from "@/lib/types";
+import { getAllPosts } from "@/lib/posts";
 import { Header } from "@/components/site/Header";
 import { PostRow } from "@/components/post/PostCard";
 
-async function safeGetPosts(): Promise<Post[]> {
-  try {
-    return await getPosts();
-  } catch {
-    return [];
-  }
-}
-
 // Brain: the full index of posts, the reader's entry into the second brain.
 export default async function BrainPage() {
-  const posts = await safeGetPosts();
+  const posts = await getAllPosts();
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -34,7 +25,7 @@ export default async function BrainPage() {
               Chưa có bài viết nào. Bài đầu tiên đang được viết.
             </p>
           ) : (
-            posts.map((post) => <PostRow key={post.id} post={post} />)
+            posts.map((post) => <PostRow key={post.slug} post={post} />)
           )}
         </div>
       </main>
