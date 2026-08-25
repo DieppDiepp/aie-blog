@@ -48,7 +48,8 @@ export default async function Home() {
           />
           <div className="relative">
             <h1 className="max-w-3xl text-balance font-serif text-[44px] font-medium leading-[1.02] tracking-[-0.025em] text-ink md:text-[68px]">
-              Ghi lại cách tôi nghĩ về việc xây dựng hệ thống AI.
+              Ghi lại cách tôi <em style={{ fontStyle: "italic" }}>nghĩ</em> về
+              việc xây dựng hệ thống AI.
             </h1>
             <p className="mt-8 max-w-xl text-[18px] leading-relaxed text-muted md:text-[19px]">
               Một khu vườn số cho ghi chú, bài viết và sơ đồ kiến trúc, được nối
@@ -57,10 +58,16 @@ export default async function Home() {
             <div className="mt-10 flex flex-wrap items-center gap-6">
               <Link
                 href="/brain"
-                className="inline-flex items-center gap-2 rounded-[10px] bg-ink px-6 py-3 text-[15px] font-medium transition-opacity hover:opacity-90"
+                className="inline-flex items-center gap-3 rounded-[11px] bg-ink py-[11px] pl-[22px] pr-[11px] text-[15px] font-medium transition-opacity hover:opacity-90"
                 style={{ color: "var(--bg)" }}
               >
-                Đọc bài mới nhất <ArrowRight />
+                Đọc bài mới nhất
+                <span
+                  className="inline-flex h-[26px] w-[26px] items-center justify-center rounded-full"
+                  style={{ background: "rgba(252,252,250,0.15)" }}
+                >
+                  <ArrowRight />
+                </span>
               </Link>
               <Link
                 href="/brain"
@@ -74,9 +81,11 @@ export default async function Home() {
 
         {/* Latest writing */}
         <section className="pb-24">
-          <div className="mb-5 flex items-baseline justify-between">
-            <h2 className="text-[15px] font-medium text-ink">Bài viết gần đây</h2>
-            <Link href="/brain" className="text-[14px] text-accent hover:text-accent-hover">
+          <div className="mb-6 flex items-baseline justify-between">
+            <h2 className="font-serif text-[26px] font-medium tracking-[-0.02em] text-ink md:text-[27px]">
+              Bài viết gần đây
+            </h2>
+            <Link href="/brain" className="text-[14px] font-medium text-accent hover:text-accent-hover">
               Xem tất cả
             </Link>
           </div>

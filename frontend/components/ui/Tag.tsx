@@ -12,7 +12,7 @@ const VARIANT_STYLE: Record<NonNullable<PostTag["variant"]>, React.CSSProperties
 export function Tag({ label, variant = "topic" }: PostTag) {
   return (
     <span
-      className="inline-flex items-center whitespace-nowrap rounded-full px-[10px] py-1 font-mono text-[11px] leading-none"
+      className="inline-flex items-center whitespace-nowrap rounded-[7px] px-[11px] py-[4px] text-[12px] leading-none"
       style={VARIANT_STYLE[variant]}
     >
       {label}

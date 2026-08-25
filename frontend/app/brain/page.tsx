@@ -19,7 +19,7 @@ export default async function BrainPage() {
     <div className="flex min-h-screen flex-col">
       <Header />
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-20 md:px-10 md:py-28">
+      <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-20 md:px-10 md:py-28">
         <h1 className="font-serif text-[40px] font-medium leading-tight tracking-[-0.022em] text-ink md:text-[52px]">
           Brain
         </h1>
