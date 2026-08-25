@@ -110,6 +110,75 @@ Anchor Python: để dữ liệu ở thư mục cố định, thay vì nhét tro
 - Sơ đồ multi-stage (builder bỏ đi, runner ship).
 - (Sau) diagram kiến trúc tương tác, xây khi làm hệ render case study.
 
+## 11. Mạng nội bộ Docker: các service tìm và gọi nhau thế nào
+
+Compose tạo MỘT mạng riêng nội bộ (không mô phỏng cả Internet). Mỗi container như
+một máy riêng trong mạng đó. Docker cấp DNS: tên service chính là hostname.
+
+- Trong mạng: `web -> api:8000 -> db:5432`, dùng TÊN SERVICE, không dùng localhost.
+- Docker DNS phân giải `api`, `db` tới đúng container. Container bị tạo lại, IP đổi,
+  gọi bằng tên vẫn đúng. Đó là lợi ích của gọi theo tên thay vì IP cứng.
+
+Hai phạm vi mạng khác nhau:
+
+```
+Từ máy thật vào container:  qua port mapping "3000:3000" (host:container)
+                            dùng localhost:3000, localhost:8000
+Giữa các container:         dùng tên service (api:8000, db:5432)
+```
+
+Không dùng localhost giữa các container, vì bên trong một container `localhost` nghĩa
+là chính container đó. `web` gọi `localhost:8000` là tự tìm cổng 8000 trong chính
+`web`, không phải tới `api`.
+
+Luồng đầy đủ một request:
+
+```
+Browser -> localhost:3000/brain -> web (Next.js server)
+web -> api:8000/posts -> api (FastAPI)
+api -> db:5432 (SQL) -> db (PostgreSQL)
+db trả rows -> api trả JSON -> web render HTML -> Browser
+```
+
+Vì `brain/page.tsx` là Server Component async, chính SERVER Next.js trong container
+`web` gọi `api`. Trình duyệt KHÔNG gọi `api:8000` (hostname đó chỉ tồn tại trong mạng
+Docker, máy người dùng không biết).
+
+Backend không gọi ngược lên frontend. Nó trả response trên chính connection mà `web`
+đã mở. Giao tiếp hai chiều diễn ra trên cùng một connection HTTP.
+
+Ba vai trò tách biệt, đừng gộp làm một:
+
+```
+Environment variable  = tấm bản đồ địa chỉ (API_URL, DATABASE_URL)
+fetch / SQLAlchemy     = phương tiện thực sự thực hiện cuộc gọi
+Docker network + DNS   = cho phép service tìm thấy nhau bằng tên
+```
+
+Biến môi trường chỉ nói "gọi tới địa chỉ nào", nó không tự tạo connection.
+Chính `fetch()` (frontend) và SQLAlchemy/psycopg (backend) mới mở kết nối thật.
+
+`depends_on` chỉ định thứ tự KHỞI ĐỘNG (`db` trước `api` trước `web`), nhưng KHÔNG
+đảm bảo service đã sẵn sàng nhận request. Postgres có thể đã start nhưng còn đang khởi
+tạo. Hệ thống lớn hơn cần thêm `healthcheck` và điều kiện chờ healthy.
+
+FRONTEND_ORIGIN và CORS: trong dự án này `main.py` CÓ dùng `frontend_origin` để cấu
+hình `CORSMiddleware` (`allow_origins=[settings.frontend_origin]`), nên biến này có
+tác dụng thật. Nuance quan trọng: luồng hiện tại fetch phía server (`web` gọi `api`)
+nên CORS KHÔNG bị kích hoạt cho call đó, vì CORS là cơ chế của TRÌNH DUYỆT. CORS chỉ
+có ý nghĩa khi trình duyệt gọi thẳng `api` (vd sau này thêm fetch phía client tới
+`localhost:8000`).
+
+Bảng tổng kết vai trò:
+
+```
+API_URL         web dùng để biết địa chỉ api
+DATABASE_URL    api dùng để biết địa chỉ db
+FRONTEND_ORIGIN api dùng để cấu hình CORS (cho trình duyệt gọi thẳng api)
+ports           cho máy thật / bên ngoài truy cập container
+service name    cho các container gọi nhau trong mạng Docker
+```
+
 ---
 
 ## Phụ lục A: bản nháp lập luận gốc của tác giả (giữ nguyên, làm nguyên liệu bài tập)
