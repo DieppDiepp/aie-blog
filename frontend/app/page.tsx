@@ -1,22 +1,104 @@
 import Link from "next/link";
-import { NodeConnector } from "@/components/motifs/NodeConnector";
+import { getPosts } from "@/lib/api";
+import type { Post } from "@/lib/types";
+import { Header } from "@/components/site/Header";
+import { FeaturedPost, PostRow } from "@/components/post/PostCard";
 
-// Home: editorial hero. Kept intentionally minimal for the walking skeleton.
-export default function Home() {
+// The home page renders live posts. Never let a missing API break the page.
+async function safeGetPosts(): Promise<Post[]> {
+  try {
+    return await getPosts();
+  } catch {
+    return [];
+  }
+}
+
+function ArrowRight() {
   return (
-    <main className="mx-auto max-w-2xl px-6 py-24">
-      <NodeConnector className="mb-8" />
-      <h1 className="text-4xl font-semibold tracking-tight">AIE_Blog</h1>
-      <p className="mt-4 text-lg" style={{ color: "var(--muted)" }}>
-        A second brain and portfolio for an AI engineer.
-      </p>
-      <Link
-        href="/brain"
-        className="mt-8 inline-block underline"
-        style={{ color: "var(--accent)" }}
-      >
-        Explore the brain
-      </Link>
-    </main>
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M3 8h9M8.5 4l4 4-4 4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export default async function Home() {
+  const posts = await safeGetPosts();
+  const [featured, ...rest] = posts;
+
+  return (
+    <div className="flex min-h-screen flex-col">
+      <Header />
+
+      <main className="mx-auto w-full max-w-6xl flex-1 px-6 md:px-10">
+        {/* Hero */}
+        <section className="relative py-24 md:py-32">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(130% 95% at 90% 6%, rgba(47,95,224,0.11), rgba(47,95,224,0) 50%)",
+            }}
+          />
+          <div className="relative">
+            <h1 className="max-w-3xl text-balance font-serif text-[44px] font-medium leading-[1.02] tracking-[-0.025em] text-ink md:text-[68px]">
+              Ghi lại cách tôi nghĩ về việc xây dựng hệ thống AI.
+            </h1>
+            <p className="mt-8 max-w-xl text-[18px] leading-relaxed text-muted md:text-[19px]">
+              Một khu vườn số cho ghi chú, bài viết và sơ đồ kiến trúc, được nối
+              với nhau như một đồ thị tri thức thay vì một danh sách phẳng.
+            </p>
+            <div className="mt-10 flex flex-wrap items-center gap-6">
+              <Link
+                href="/brain"
+                className="inline-flex items-center gap-2 rounded-[10px] bg-ink px-6 py-3 text-[15px] font-medium transition-opacity hover:opacity-90"
+                style={{ color: "var(--bg)" }}
+              >
+                Đọc bài mới nhất <ArrowRight />
+              </Link>
+              <Link
+                href="/brain"
+                className="inline-flex items-center gap-2 text-[15px] font-medium text-accent transition-colors hover:text-accent-hover"
+              >
+                Khám phá Brain <ArrowRight />
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* Latest writing */}
+        <section className="pb-24">
+          <div className="mb-5 flex items-baseline justify-between">
+            <h2 className="text-[15px] font-medium text-ink">Bài viết gần đây</h2>
+            <Link href="/brain" className="text-[14px] text-accent hover:text-accent-hover">
+              Xem tất cả
+            </Link>
+          </div>
+
+          {posts.length === 0 ? (
+            <p className="rounded-card border border-hairline bg-surface p-8 text-[15px] text-muted">
+              Chưa có bài viết nào. Bài đầu tiên đang được viết.
+            </p>
+          ) : (
+            <>
+              {featured && <FeaturedPost post={featured} />}
+              {rest.length > 0 && (
+                <div className="mt-1.5">
+                  {rest.map((post) => (
+                    <PostRow key={post.id} post={post} />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      </main>
+    </div>
   );
 }
