@@ -1,6 +1,8 @@
 # ADR-0002: PostgreSQL thay vì MongoDB
 
 Trạng thái: Accepted. Ngày: 2026-08-24.
+Tinh chỉnh bởi ADR-0004 (2026-08-25): thân bài bespoke chuyển sang file MDX
+trong repo. DB vẫn giữ metadata, tag và quan hệ Knowledge Graph.
 
 ## Bối cảnh
 

@@ -16,6 +16,7 @@ Không xoá ADR cũ, chỉ đánh dấu "Superseded" khi thay bằng quyết đ�
 - `decisions/0001-architecture.md` : kiến trúc tổng thể.
 - `decisions/0002-database.md`     : chọn PostgreSQL.
 - `decisions/0003-design-system.md`: hệ thiết kế v1 (Editorial Calm), font, màu, tag.
+- `decisions/0004-article-rendering.md`: mỗi bài là FE tùy biến (MDX) trong repo.
 
 ## Vận hành
 
