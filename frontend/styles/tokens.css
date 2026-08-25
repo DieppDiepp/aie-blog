@@ -1,11 +1,29 @@
 /* Design tokens. Every color is a CSS variable so a dark theme can be added
-   later by defining a second set of values, without touching components. */
+   later by defining a second set of values, without touching components.
+   See docs/decisions/0003-design-system.md for the rationale. */
 :root {
-  --bg: #fcfcfa;        /* warm paper background (default light "Paper" theme) */
-  --surface: #ffffff;   /* cards and raised panels */
-  --ink: #16181d;       /* primary text */
-  --muted: #6b6f76;     /* secondary text */
-  --hairline: #e7e7e2;  /* thin borders */
-  --accent: #2f5fe0;    /* Refined Blue: links, active node */
+  /* Surfaces and text (light "Paper" theme, the default) */
+  --bg: #fcfcfa;         /* warm paper background */
+  --surface: #ffffff;    /* cards and raised panels */
+  --ink: #16181d;        /* primary text, headings */
+  --ink-body: #25272e;   /* long-form body text, a touch softer than ink */
+  --muted: #6b6f76;      /* secondary text, meta */
+  --hairline: #e7e7e2;   /* thin borders and dividers */
+
+  /* Accent: Refined Blue, used sparingly for emphasis */
+  --accent: #2f5fe0;
   --accent-hover: #1e40af;
+  --accent-wash: rgba(47, 95, 224, 0.05);  /* faint tinted panels */
+  --accent-line: rgba(47, 95, 224, 0.14);  /* tinted panel borders */
+
+  /* Difficulty tag tints (low saturation to stay calm) */
+  --tag-easy-bg: rgba(58, 122, 88, 0.12);
+  --tag-easy-fg: #2e6b4c;
+  --tag-mid-bg: rgba(166, 90, 46, 0.12);
+  --tag-mid-fg: #8a4a24;
+  --tag-hard-bg: rgba(180, 52, 52, 0.12);
+  --tag-hard-fg: #9a2f2f;
+
+  /* Shape */
+  --radius-card: 16px;
 }

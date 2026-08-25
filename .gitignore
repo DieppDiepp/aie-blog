@@ -8,6 +8,7 @@ __pycache__/
 node_modules/
 .next/
 out/
+next-env.d.ts
 
 # Env and secrets
 .env

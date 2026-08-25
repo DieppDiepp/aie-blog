@@ -13,6 +13,10 @@
 Mỗi file là một ADR (Architecture Decision Record) đánh số, ghi lại lý do.
 Không xoá ADR cũ, chỉ đánh dấu "Superseded" khi thay bằng quyết định mới.
 
+- `decisions/0001-architecture.md` : kiến trúc tổng thể.
+- `decisions/0002-database.md`     : chọn PostgreSQL.
+- `decisions/0003-design-system.md`: hệ thiết kế v1 (Editorial Calm), font, màu, tag.
+
 ## Vận hành
 
 - `runbook.md`  : techstack, yêu cầu môi trường, mọi script và lý do.
