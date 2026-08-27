@@ -85,8 +85,15 @@ một kết nối đi ra tới hệ thống edge của Cloudflare. Hệ quả:
 - Không mở cổng vào nào, không phơi IP máy chủ ra ngoài. Kín hơn.
 - Cloudflare lo HTTPS ở phía ngoài, rồi đẩy yêu cầu xuôi qua đường ống vào một
   cổng nội bộ (ví dụ web:3000).
-- Không cần Caddy để lo chứng chỉ nữa. Việc "tên miền nào tới dịch vụ nào" cấu
-  hình trên dashboard của Cloudflare.
+- Không cần Caddy để lo chứng chỉ nữa.
+
+Tunnel có hai kiểu. Named tunnel gắn một hostname cố định như blog.tencuaban.com,
+dùng một token và cần tài khoản đã có domain, URL ổn định, hợp chạy lâu dài. Quick
+tunnel không cần domain và không cần token: Cloudflare cấp một URL ngẫu nhiên đuôi
+trycloudflare.com, in ra trong log của cloudflared, nhưng URL đổi mỗi lần khởi động
+lại nên chỉ hợp thử nghiệm. Ở giai đoạn này mình chọn quick tunnel cho nhanh, lệnh
+chạy là `cloudflared tunnel --url http://web:3000`, sau này muốn ổn định thì đổi sang
+named tunnel gắn domain.
 
 ## 5. Chìa khóa deploy: SSH key riêng, tách khỏi key cá nhân
 
@@ -186,6 +193,14 @@ CD đó, tên là deploy, chạy sau job build, nội dung là SSH vào VPS ch�
 và dựng lại container. VPS không tự chạy CI/CD; lệnh kéo nằm trong job deploy, mà job
 đó chạy trên máy ảo của GitHub rồi SSH vào VPS thực thi từ xa.
 
+### "GHCR mà sao toàn lệnh docker?"
+
+Vì docker là client vạn năng cho mọi registry theo chuẩn OCI/Docker Registry, không
+riêng Docker Hub. GHCR, Docker Hub, AWS ECR, Google GCR đều nói cùng một giao thức
+registry, nên cùng bộ lệnh docker login, docker pull, docker push chạy được với bất
+kỳ cái nào, chỉ đổi phần hostname ở đầu (docker.io là Docker Hub, ghcr.io là GitHub
+Container Registry). Chữ docker ở đây là công cụ và giao thức, không phải công ty.
+
 ## 7. Các quyết định đã chốt
 
 - Đẩy image qua registry GHCR (không build trên VPS, không copy file tar thủ công).
@@ -203,3 +218,48 @@ SSH vào VPS được.
 
 Còn lại: tạo token đọc GHCR cho VPS đăng nhập, viết bước deploy trong pipeline
 (SSH vào VPS chạy pull và up), cấu hình đường ống cloudflared trỏ tên miền vào web.
+
+## 9. Phụ lục: các lệnh tái dùng
+
+Chép lại các lệnh đã dùng để dựng pipeline, dạng có thể tái dùng. Thay các chỗ viết
+hoa (OWNER, REPO, USER, VPS_HOST, PORT, PASTE_TOKEN) bằng giá trị thật của bạn.
+Không bao giờ chép token hay key thật vào file này.
+
+Tạo cặp key deploy riêng (chạy ở máy mình):
+
+    ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/.ssh/aie_blog_deploy -N ""
+
+Gắn public key lên VPS (dùng >> để nối thêm, không ghi đè):
+
+    ssh USER@VPS_HOST 'mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo "NOI_DUNG_PUBLIC_KEY" >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys'
+
+Đưa key và thông tin VPS lên GitHub Secrets (gh gửi lên server GitHub, không lưu local):
+
+    gh secret set VPS_SSH_KEY  --repo OWNER/REPO < ~/.ssh/aie_blog_deploy
+    gh secret set VPS_HOST     --repo OWNER/REPO --body "VPS_HOST"
+    gh secret set VPS_USER     --repo OWNER/REPO --body "USER"
+    gh secret set VPS_SSH_PORT --repo OWNER/REPO --body "PORT"
+
+Test key deploy vào được VPS không:
+
+    ssh -i ~/.ssh/aie_blog_deploy -p PORT -o IdentitiesOnly=yes USER@VPS_HOST "echo ok && docker --version"
+
+Đăng nhập GHCR trên VPS bằng PAT chỉ có scope read:packages (tạo PAT trên web trước):
+
+    echo "PASTE_TOKEN" | docker login ghcr.io -u OWNER --password-stdin
+
+Test kéo image private về VPS:
+
+    docker pull ghcr.io/OWNER/aie-blog-web:latest
+
+Tạo file secret cho prod trên VPS (từ mẫu, rồi điền giá trị thật):
+
+    mkdir -p ~/aie-blog && cd ~/aie-blog
+    # tạo .env.prod theo .env.prod.example trong repo, điền mật khẩu DB mạnh và token tunnel
+
+Deploy thủ công trên VPS khi cần (pipeline làm y hệt các lệnh này):
+
+    cd ~/aie-blog
+    export IMAGE_TAG=latest   # hoặc một git SHA cụ thể để chạy đúng bản đó
+    docker compose -f compose.prod.yml --env-file .env.prod pull
+    docker compose -f compose.prod.yml --env-file .env.prod up -d
