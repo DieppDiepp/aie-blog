@@ -201,6 +201,40 @@ registry, nên cùng bộ lệnh docker login, docker pull, docker push chạy �
 kỳ cái nào, chỉ đổi phần hostname ở đầu (docker.io là Docker Hub, ghcr.io là GitHub
 Container Registry). Chữ docker ở đây là công cụ và giao thức, không phải công ty.
 
+### "Push lần nữa thì stack cũ có bị tắt không, hay chạy chồng đống lên?"
+
+docker compose khai báo theo trạng thái mong muốn. Mỗi lần chạy up, nó so image và
+cấu hình mới với những gì đang chạy, chỉ thay container nào thực sự đổi. web và api
+có image tag SHA mới nên bị thay (container cũ dừng và bị xóa, container mới lên). db
+và cloudflared không đổi nên để nguyên. Luôn chỉ có đúng một bộ container, không chồng
+đống nhiều bản.
+
+### "Vậy image cũ có dồn lại làm đầy đĩa không?"
+
+Có nguy cơ, vì mỗi lần deploy kéo một image tag SHA mới, image SHA cũ thành không còn
+container nào dùng. Nên bước deploy chạy `docker image prune -a -f` để xóa các image
+không dùng sau mỗi lần deploy. Lưu ý phải dùng cờ -a: image cũ vẫn còn tag SHA nên
+không phải dangling, bản prune thường chỉ dọn dangling sẽ bỏ sót chúng.
+
+### "Mỗi lần đổi thì URL cloudflared có khác không? Tự lấy URL ở đâu?"
+
+URL chỉ đổi khi container cloudflared khởi động lại, ví dụ VPS reboot hoặc cloudflared
+bị dựng lại. Deploy chỉ đổi web và api thường không đụng cloudflared nên URL hay giữ
+nguyên, nhưng không có gì đảm bảo, cứ coi như tạm thời. Lấy URL bằng một trong hai
+cách: đọc log job deploy trên GitHub Actions (dòng sau chữ Quick tunnel URL), hoặc
+trên VPS chạy `docker compose -f compose.prod.yml logs cloudflared` rồi tìm dòng
+trycloudflare.com.
+
+### "Domain mua ở đâu, trỏ về cloudflared kiểu gì, mua domain là chưa có HTTPS?"
+
+Domain là cái tên dễ đọc thuê theo năm từ một nhà đăng ký bất kỳ. Mua domain chỉ cho
+cái tên, chưa có HTTPS, vì HTTPS cần một chứng chỉ TLS. Với Cloudflare cách nối là:
+thêm domain vào tài khoản Cloudflare (đổi nameserver của domain sang Cloudflare, làm
+một lần ở nhà đăng ký), rồi tạo một named tunnel. Cloudflare tự tạo bản ghi DNS trỏ
+hostname của bạn vào tunnel, và tự cấp chứng chỉ HTTPS miễn phí ở phía ngoài. Nhờ vậy
+có https://blog.tencuaban.com hợp lệ mà không phải tự lo chứng chỉ. Cách này không
+trỏ thẳng vào IP máy chủ nên IP vẫn kín.
+
 ## 7. Các quyết định đã chốt
 
 - Đẩy image qua registry GHCR (không build trên VPS, không copy file tar thủ công).
@@ -210,14 +244,22 @@ Container Registry). Chữ docker ở đây là công cụ và giao thức, khô
 - GHCR để private, nên VPS cần một token chỉ-đọc để đăng nhập trước khi kéo image.
 - Bỏ Caddy khỏi stack prod vì Cloudflare Tunnel đã lo phần HTTPS và định tuyến.
 
-## 8. Trạng thái và việc còn lại
+## 8. Kết quả và việc còn lại
 
-Đã xong: file compose cho prod, workflow build và đẩy image lên GHCR, tạo cặp key
-deploy, đưa private key và thông tin VPS vào secret của GitHub, xác nhận key deploy
-SSH vào VPS được.
+Pipeline đã chạy thông từ đầu đến cuối. Một lần push lên main giờ sẽ: kiểm đúng sai
+(CI), build hai image và đẩy lên GHCR, rồi job deploy SSH vào VPS kéo đúng image của
+commit đó và dựng lại stack. Bốn container lên đúng thứ tự (db chờ tới khi khỏe rồi
+mới tới api, cùng web và cloudflared), và site hiện ra ngoài Internet qua một URL
+quick tunnel đuôi trycloudflare.com. Đã kiểm chứng mở URL thấy trang chủ render đúng.
 
-Còn lại: tạo token đọc GHCR cho VPS đăng nhập, viết bước deploy trong pipeline
-(SSH vào VPS chạy pull và up), cấu hình đường ống cloudflared trỏ tên miền vào web.
+Điều rút ra: từ giờ chỉ cần push, website tự cập nhật, và máy chủ không hề build gì,
+chỉ kéo đúng bản đã được kiểm thử.
+
+Còn lại cho sau này:
+- Khi mua domain: đổi từ quick tunnel sang named tunnel gắn domain để có URL ổn định
+  và HTTPS theo tên miền riêng.
+- Tùy chọn: thêm bộ lọc đường dẫn cho workflow để commit chỉ sửa tài liệu không phải
+  build lại image.
 
 ## 9. Phụ lục: các lệnh tái dùng
 
