@@ -92,7 +92,9 @@ jobs:
             # versions keep their SHA tag, so dangling-only prune would leave them
             # and disk usage would grow with every deploy.
             docker image prune -a -f
-            # Surface the random quick-tunnel URL in the Actions log.
+            # Named tunnel: the public address is fixed (aiengineerblog.com), so
+            # there is no random URL to scrape. Just confirm the connector
+            # registered its edge connections in the Actions log.
             sleep 8
-            echo "=== Quick tunnel URL ==="
-            docker compose -f compose.prod.yml logs cloudflared | grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' | tail -1
+            echo "=== Site: https://aiengineerblog.com ==="
+            docker compose -f compose.prod.yml logs cloudflared | grep -Ei 'registered tunnel connection|Connection .* registered' | tail -4 || true

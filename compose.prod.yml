@@ -46,11 +46,15 @@ services:
   cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
-    # Quick tunnel: Cloudflare assigns a random *.trycloudflare.com URL that
-    # forwards to web:3000 over the internal network. No token and no domain
-    # needed. The URL changes on every restart and is printed in this service's
-    # logs. For temporary/testing use, not a stable production address.
-    command: tunnel --no-autoupdate --url http://web:3000
+    # Named tunnel: this connector authenticates to a pre-created tunnel with a
+    # token (TUNNEL_TOKEN, kept in .env.prod on the VPS, never in git). The route
+    # table lives in the Cloudflare dashboard: aiengineerblog.com (and www) ->
+    # http://web:3000. Cloudflare terminates TLS at its edge and auto-manages the
+    # certificate, so no ports are opened and no cert lives on the VPS. Unlike a
+    # quick tunnel the public hostname is stable across restarts.
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
     depends_on:
       - web
 
