@@ -7,6 +7,14 @@ name: CD
 on:
   push:
     branches: [main]
+    # Skip build+deploy when a push touches ONLY prose: root-level content/
+    # drafts, docs/, or stray markdown. Real code still triggers (frontend/,
+    # backend/, Dockerfiles, compose.prod.yml, these workflow files). Rendering
+    # posts live under frontend/content/**, so frontend/** already covers them.
+    paths-ignore:
+      - 'content/**'
+      - 'docs/**'
+      - '**/*.md'
 
 jobs:
   build-and-push:

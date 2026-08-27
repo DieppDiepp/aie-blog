@@ -5,6 +5,12 @@ name: CI
 on:
   push:
     branches: [main]
+    # Prose-only pushes (content/ drafts, docs/, markdown) need no CI. Code still
+    # runs it. PRs are unfiltered so anything opened for review is always checked.
+    paths-ignore:
+      - 'content/**'
+      - 'docs/**'
+      - '**/*.md'
   pull_request:
 
 jobs:
