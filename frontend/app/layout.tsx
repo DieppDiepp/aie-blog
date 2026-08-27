@@ -25,7 +25,7 @@ const mono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Nguyên",
+  title: "AI Engineer Blog",
   description: "Second brain và portfolio của một AI engineer.",
 };
 

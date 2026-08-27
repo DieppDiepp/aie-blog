@@ -15,7 +15,7 @@ export function Header() {
         href="/"
         className="font-serif text-[21px] font-semibold tracking-[-0.01em] text-ink"
       >
-        Nguyên
+        AI Engineer Blog
       </Link>
       <nav className="flex items-center gap-8 text-[15px] text-muted md:gap-9">
         {NAV.map((item, i) => (
