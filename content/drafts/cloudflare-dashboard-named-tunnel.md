@@ -191,7 +191,56 @@ hình và khỏi lưu vào lịch sử lệnh, rồi `printf` xuống cuối fil
 Cả hai đều làm trên dashboard, không đụng repo hay VPS, nên có thể để lại làm sau khi
 site chính đã chạy.
 
-## 11. Bảng thuật ngữ nhanh
+## 11. Reverse proxy: Cloudflare đứng che máy chủ gốc
+
+Toàn bộ cách làm ở trên có một tên gọi chung: reverse proxy. Proxy là bên trung gian
+đứng giữa, nhận request rồi chuyển tiếp. Có hai chiều ngược nhau:
+
+- Forward proxy che phía client (VPN, proxy công ty): giấu người dùng khỏi máy chủ.
+- Reverse proxy che phía máy chủ: khách nối vào proxy, proxy mới chuyển vào máy chủ
+  thật, giấu máy chủ khỏi người dùng.
+
+Cụm Cloudflare edge cộng cloudflared chính là một reverse proxy đặt trước origin (máy
+chủ gốc, tức VPS). Lưu ý từ origin ở đây nghĩa là máy chủ gốc, khác với origin trong
+CORS ở mục 7 (danh tính một trang web); cùng một từ, hai nghĩa tùy ngữ cảnh, rất hay
+gặp trong web.
+
+Một reverse proxy thường gánh giúp những việc sau, ở đây Cloudflare lo hết ở edge:
+kết thúc TLS (ổ khóa cấp và giải mã tại edge, máy chủ gốc không cần chứng chỉ); định
+tuyến theo hostname và path (bảng public hostname quyết định tên nào vào service nào);
+giấu IP gốc (người ngoài chỉ thấy IP Cloudflare, không thấy IP VPS); chống DDoS, lọc
+request bậy, cache, nén; và sửa hoặc chèn thêm vào phản hồi trên đường đi (xem mục 12).
+
+Hệ quả bảo mật đáng nhớ: vì chỉ có đúng một tuyến public (hostname vào web:3000) và
+máy chủ không mở cổng nào, backend FastAPI gần như vô hình với Internet. Trang tài liệu
+Swagger của FastAPI (api:8000/docs) chỉ tồn tại trong mạng nội bộ Docker, gõ từ ngoài
+không tới. Thử vào aiengineerblog.com/docs sẽ nhận 404, nhưng 404 đó do Next.js (web)
+trả vì nó không có route tên /docs, chứ request không hề chạm tới api. Muốn mở API ra
+ngoài sau này phải chủ động thêm một tuyến riêng (ví dụ api.tenban.com vào api:8000) và
+gắn lớp bảo vệ cho nó. Mặc định là đóng, phải cố ý mới mở, đó là điều tốt.
+
+## 12. Đọc tab Network: đâu là của mình, đâu là của proxy
+
+Mở tab Network của trình duyệt trên trang thật sẽ thấy hai nhóm request khác gốc:
+
+Nhóm của chính app, cùng tên miền aiengineerblog.com, ví dụ các file
+`/_next/static/chunks/webpack-*.js` và `main-app-*.js`. Đây là các gói JavaScript của
+Next.js: trang không chỉ là HTML tĩnh mà kèm JS để tương tác. Tên file có chuỗi băm
+dài là cố ý, đổi nội dung thì đổi tên, nhờ vậy trình duyệt cache rất lâu (nhớ header
+cache-control s-maxage rất lớn ở mục 9) mà không sợ dùng nhầm bản cũ. Các file này phát
+ra từ web:3000, đi qua proxy trả về nên vẫn mang tên miền của mình.
+
+Nhóm bên thứ ba, khác tên miền, ví dụ `static.cloudflareinsights.com/beacon.min.js`.
+Đây là Cloudflare Web Analytics, một mẩu script đếm lượt xem và tốc độ trang. Điểm
+đáng chú ý: mẩu này không nằm trong code repo; chính reverse proxy chèn thêm vào HTML ở
+edge khi trả cho trình duyệt. Đó là ví dụ sống của việc proxy được phép sửa nội dung
+trên đường đi. Nó nhẹ, không dùng cookie, không theo dõi xuyên site; không thích thì
+tắt trong dashboard ở mục Web Analytics.
+
+Mẹo đọc nhanh tab Network: nhìn cột domain. Cùng tên miền của mình là app mình phát ra
+(qua proxy); domain lạ là bên thứ ba, ở đây do Cloudflare thêm.
+
+## 13. Bảng thuật ngữ nhanh
 
 - Cloudflare Tunnel: đường ống nối máy chủ ra edge Cloudflare bằng kết nối đi ra, không
   mở cổng vào.
@@ -206,8 +255,13 @@ site chính đã chạy.
 - CORS: luật trình duyệt kiểm soát trang nào được gọi API nào; điều khiển qua origin.
 - Origin: scheme cộng host của một trang, ví dụ https://aiengineerblog.com.
 - Always Use HTTPS: cài đặt Cloudflare tự đẩy mọi truy cập http sang https.
+- Reverse proxy: lớp trung gian đứng trước máy chủ, nhận kết nối thay rồi chuyển vào.
+- Forward proxy: lớp trung gian đứng phía client, giấu người dùng khỏi máy chủ.
+- Origin (máy chủ gốc): máy chủ thật phía sau proxy; khác nghĩa origin trong CORS.
+- Web Analytics beacon: script đếm lượt xem Cloudflare chèn vào trang ở edge.
+- Hydration: bước trình duyệt chạy JS để trang tĩnh của Next.js trở nên tương tác.
 
-## 12. Liên quan
+## 14. Liên quan
 
 Bài này là mắt xích thứ ba của mạch triển khai. Bài CI/CD (ci-cd-vps-ghcr) dựng hạ
 tầng chạy và cách ra Internet bằng URL tạm. Bài domain-dns-tls giải thích domain, DNS,
