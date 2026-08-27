@@ -1,20 +1,38 @@
 import type { MDXComponents } from "mdx/types";
+import { slugify } from "@/lib/toc";
+
+// Flatten heading children into a plain string so we can derive a stable anchor
+// id that matches the table of contents.
+function textOf(node: React.ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(textOf).join("");
+  if (node && typeof node === "object" && "props" in node) {
+    return textOf((node as { props: { children?: React.ReactNode } }).props.children);
+  }
+  return "";
+}
 
 // Element styling for article bodies rendered from MDX. Keeps prose in the
 // site's sans body font (set globally on <body>) and reserves serif for
 // headings, matching the rest of the design system.
 export const mdxComponents: MDXComponents = {
-  h2: (props) => (
+  h2: ({ children, ...props }) => (
     <h2
-      className="mt-12 font-serif text-[26px] font-medium leading-snug tracking-[-0.015em] text-ink first:mt-0 md:text-[28px]"
+      id={slugify(textOf(children))}
+      className="mt-12 scroll-mt-24 font-serif text-[26px] font-medium leading-snug tracking-[-0.015em] text-ink first:mt-0 md:text-[28px]"
       {...props}
-    />
+    >
+      {children}
+    </h2>
   ),
-  h3: (props) => (
+  h3: ({ children, ...props }) => (
     <h3
-      className="mt-9 font-serif text-[21px] font-medium leading-snug tracking-[-0.01em] text-ink md:text-[22px]"
+      id={slugify(textOf(children))}
+      className="mt-9 scroll-mt-24 font-serif text-[21px] font-medium leading-snug tracking-[-0.01em] text-ink md:text-[22px]"
       {...props}
-    />
+    >
+      {children}
+    </h3>
   ),
   p: (props) => (
     <p className="mt-6 text-[18px] leading-[1.78] text-ink-body first:mt-0 md:text-[18.5px]" {...props} />

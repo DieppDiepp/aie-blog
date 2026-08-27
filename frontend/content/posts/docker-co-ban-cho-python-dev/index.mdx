@@ -3,7 +3,7 @@ title: "Docker cơ bản cho người code Python"
 summary: "Hiểu image, container và volume qua đúng phép loại suy của người viết Python: image là class, container là instance của class đó."
 date: "2026-08-24"
 tags:
-  - label: "Hạ tầng"
+  - label: "Hệ thống"
     variant: "topic"
   - label: "Trung bình"
     variant: "mid"
@@ -133,13 +133,13 @@ là chính container đó. `web` gọi `localhost:8000` là tự tìm cổng 800
 Luồng đầy đủ một request:
 
 ```
-Browser -> localhost:3000/brain -> web (Next.js server)
+Browser -> localhost:3000/blog -> web (Next.js server)
 web -> api:8000/posts -> api (FastAPI)
 api -> db:5432 (SQL) -> db (PostgreSQL)
 db trả rows -> api trả JSON -> web render HTML -> Browser
 ```
 
-Vì `brain/page.tsx` là Server Component async, chính SERVER Next.js trong container
+Vì `blog/page.tsx` là Server Component async, chính SERVER Next.js trong container
 `web` gọi `api`. Trình duyệt KHÔNG gọi `api:8000` (hostname đó chỉ tồn tại trong mạng
 Docker, máy người dùng không biết).
 

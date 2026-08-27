@@ -20,7 +20,14 @@
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
 
-  --radius-card: 16px;
+  --radius-card: var(--card-radius);
+}
+
+/* Smooth in-page navigation; scroll-padding keeps anchor targets (Back to top,
+   and the article table of contents to come) clear of the sticky header. */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
 }
 
 /* Base page surface. */

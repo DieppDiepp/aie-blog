@@ -41,10 +41,10 @@ Cập nhật ngay khi thêm hoặc đổi bất kỳ script nào.
 - Đầu file cần frontmatter: `title`, `summary`, `date` (YYYY-MM-DD), `tags`
   (mảng `{label, variant}`, variant là `topic`/`easy`/`mid`/`hard`), và tuỳ
   chọn `draft: true` nếu chưa muốn xuất hiện ở danh sách bài.
-- Thân bài viết bằng Markdown/MDX ngay dưới frontmatter. Trang chủ, `/brain`
-  và `/brain/[slug]` đọc thẳng từ thư mục này, không qua DB.
+- Thân bài viết bằng Markdown/MDX ngay dưới frontmatter. Trang chủ, `/blog`
+  và `/blog/[slug]` đọc thẳng từ thư mục này, không qua DB.
 - Xem thử: `docker compose up --build` (hoặc `npm run dev` nếu chạy FE
-  ngoài Docker), rồi mở `/brain/<slug>`.
+  ngoài Docker), rồi mở `/blog/<slug>`.
 - Lưu ý: endpoint `POST /posts` trên backend vẫn còn nhưng FE không đọc DB
   cho nội dung bài nữa (xem ADR-0004); DB sẽ dùng lại khi làm bước đồng bộ
   metadata cho tìm kiếm và Knowledge Graph.

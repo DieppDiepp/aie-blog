@@ -8,6 +8,9 @@ export type Post = {
   body: string;
   created_at: string;
   tags?: PostTag[];
+  // Optional path to a thumbnail image (e.g. "/images/posts/<slug>.jpg"). When
+  // absent, the UI renders a placeholder box so layout is easy to tune first.
+  thumbnail?: string;
 };
 
 // A single tag on a post. "topic" is a neutral knowledge tag; the others are

@@ -12,6 +12,7 @@ type Frontmatter = {
   date: string;
   tags?: PostTag[];
   draft?: boolean;
+  thumbnail?: string;
 };
 
 async function readPostFile(
@@ -34,6 +35,7 @@ function toPost(slug: string, frontmatter: Frontmatter, content: string): Post {
     body: content,
     created_at: frontmatter.date,
     tags: frontmatter.tags,
+    thumbnail: frontmatter.thumbnail,
   };
 }
 

@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Newsreader, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Header } from "@/components/site/Header";
+import { Footer } from "@/components/site/Footer";
+import { getAllPosts } from "@/lib/posts";
 
 // Editorial serif for headings (Vietnamese subset included), Geist for body
 // and UI, Geist Mono for labels and code. Exposed as CSS variables that
@@ -26,17 +29,28 @@ const mono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "AI Engineer Blog",
-  description: "Second brain và portfolio của một AI engineer.",
+  description: "Portfolio và bài viết của một AI engineer.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Pass a light post list (slug + title) to the Header so its Blog dropdown
+  // lists real, recent content rather than placeholder links.
+  const posts = await getAllPosts();
+  const navPosts = posts.map((p) => ({ slug: p.slug, title: p.title }));
+
   return (
     <html lang="vi" className={`${serif.variable} ${sans.variable} ${mono.variable}`}>
-      <body>{children}</body>
+      <body>
+        <div className="flex min-h-screen flex-col">
+          <Header posts={navPosts} />
+          <div className="flex-1">{children}</div>
+          <Footer />
+        </div>
+      </body>
     </html>
   );
 }

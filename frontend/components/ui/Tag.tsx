@@ -1,7 +1,7 @@
 import type { PostTag } from "@/lib/types";
 
-// Small pill tag. "topic" is a neutral knowledge tag; the difficulty variants
-// carry a low-saturation tint. Colors come from tokens.css.
+// Small square chip (7px radius, never a pill). "topic" is a neutral knowledge
+// tag; the difficulty variants carry a low-saturation tint. Colors from tokens.css.
 const VARIANT_STYLE: Record<NonNullable<PostTag["variant"]>, React.CSSProperties> = {
   topic: { border: "1px solid var(--hairline)", color: "var(--muted)" },
   easy: { background: "var(--tag-easy-bg)", color: "var(--tag-easy-fg)" },

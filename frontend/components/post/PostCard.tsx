@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Post } from "@/lib/types";
 import { Tag, TagList } from "@/components/ui/Tag";
+import { Thumbnail } from "@/components/post/Thumbnail";
 import { formatYearMonth, readingTimeMinutes } from "@/lib/format";
 
 function ArrowRight() {
@@ -25,16 +26,18 @@ export function FeaturedPost({ post }: { post: Post }) {
   const minutes = readingTimeMinutes(post.body);
   return (
     <Link
-      href={`/brain/${post.slug}`}
+      href={`/blog/${post.slug}`}
       className="group block rounded-card border p-7 md:p-8"
       style={{ background: "var(--accent-wash)", borderColor: "var(--accent-line)" }}
     >
+      <Thumbnail
+        src={post.thumbnail}
+        alt={post.title}
+        className="mb-6 aspect-[16/8] w-full"
+      />
       <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-9">
         <div className="flex-1">
-          <span className="font-mono text-[12.5px] text-muted">
-            {formatYearMonth(post.created_at)}
-          </span>
-          <h3 className="mt-2 font-serif text-[28px] font-medium leading-[1.12] tracking-[-0.017em] text-ink md:text-[30px]">
+          <h3 className="font-serif text-[28px] font-medium leading-[1.12] tracking-[-0.017em] text-ink md:text-[30px]">
             {post.title}
           </h3>
           {post.summary && (
@@ -43,9 +46,12 @@ export function FeaturedPost({ post }: { post: Post }) {
             </p>
           )}
           <div className="mt-5 flex flex-wrap items-center gap-2.5">
+            <span className="font-mono text-[12.5px] text-muted">
+              {formatYearMonth(post.created_at)}
+            </span>
             <TagList tags={tags} />
             <span className="inline-flex shrink-0 items-center gap-1.5 text-[14px] font-medium text-accent transition-colors group-hover:text-accent-hover">
-              Đọc bài <ArrowRight />
+              Read <ArrowRight />
             </span>
           </div>
         </div>
@@ -54,9 +60,9 @@ export function FeaturedPost({ post }: { post: Post }) {
           style={{ borderColor: "var(--accent-line)" }}
         >
           <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted">
-            Bài nổi bật
+            Featured
           </span>
-          <span className="font-mono text-[13px] text-ink-body">{minutes} phút đọc</span>
+          <span className="font-mono text-[13px] text-ink-body">{minutes} min read</span>
         </div>
       </div>
     </Link>
@@ -70,12 +76,18 @@ export function PostRow({ post }: { post: Post }) {
   const firstTag = post.tags?.[0];
   return (
     <Link
-      href={`/brain/${post.slug}`}
-      className="group -mx-4 grid grid-cols-[64px_1fr] items-baseline gap-5 rounded-[10px] border-b border-hairline px-4 py-6 transition-colors last:border-b-0 hover:bg-[rgba(22,24,29,0.025)] md:grid-cols-[92px_1fr_auto] md:items-start md:gap-8"
+      href={`/blog/${post.slug}`}
+      className="group -mx-4 grid grid-cols-[64px_1fr] items-baseline gap-5 rounded-[10px] border-b border-hairline px-4 py-6 transition-colors last:border-b-0 hover:bg-[rgba(22,24,29,0.025)] md:grid-cols-[88px_92px_1fr_auto] md:items-start md:gap-7"
     >
       <span className="font-mono text-[12.5px] text-muted md:pt-0.5">
         {formatYearMonth(post.created_at)}
       </span>
+      <Thumbnail
+        src={post.thumbnail}
+        alt={post.title}
+        rounded="rounded-[8px]"
+        className="hidden h-[58px] w-[92px] md:block"
+      />
       <span className="flex flex-col gap-1.5">
         <span className="font-serif text-[20px] font-medium leading-tight tracking-[-0.01em] text-ink transition-colors group-hover:text-accent md:text-[21px]">
           {post.title}

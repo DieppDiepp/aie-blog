@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getAllPosts } from "@/lib/posts";
-import { Header } from "@/components/site/Header";
-import { FeaturedPost, PostRow } from "@/components/post/PostCard";
+import { FeaturedPost } from "@/components/post/PostCard";
+import { PostCarousel } from "@/components/post/PostCarousel";
 
 function ArrowRight() {
   return (
@@ -19,85 +19,84 @@ function ArrowRight() {
 
 export default async function Home() {
   const posts = await getAllPosts();
-  const [featured, ...rest] = posts;
+  const [featured] = posts;
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
+    <main className="relative">
+      {/* Full-bleed hero glow, centered so it reaches symmetrically to both
+          edges of the page instead of hugging one corner. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[560px]"
+        style={{
+          background:
+            "radial-gradient(70% 340px at 50% -6%, rgba(47,95,224,0.13), rgba(47,95,224,0) 72%)",
+        }}
+      />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 md:px-10">
-        {/* Hero */}
-        <section className="relative py-24 md:py-32">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(130% 95% at 90% 6%, rgba(47,95,224,0.11), rgba(47,95,224,0) 50%)",
-            }}
-          />
-          <div className="relative">
-            <h1 className="max-w-3xl text-balance font-serif text-[44px] font-medium leading-[1.02] tracking-[-0.025em] text-ink md:text-[68px]">
-              Ghi lại cách tôi <em style={{ fontStyle: "italic" }}>nghĩ</em> về
-              việc xây dựng hệ thống AI.
-            </h1>
-            <p className="mt-8 max-w-xl text-[18px] leading-relaxed text-muted md:text-[19px]">
-              Một khu vườn số cho ghi chú, bài viết và sơ đồ kiến trúc, được nối
-              với nhau như một đồ thị tri thức thay vì một danh sách phẳng.
-            </p>
-            <div className="mt-10 flex flex-wrap items-center gap-6">
-              <Link
-                href="/brain"
-                className="inline-flex items-center gap-3 rounded-[11px] bg-ink py-[11px] pl-[22px] pr-[11px] text-[15px] font-medium transition-opacity hover:opacity-90"
-                style={{ color: "var(--bg)" }}
-              >
-                Đọc bài mới nhất
-                <span
-                  className="inline-flex h-[26px] w-[26px] items-center justify-center rounded-full"
-                  style={{ background: "rgba(252,252,250,0.15)" }}
+      <div className="relative mx-auto w-full max-w-6xl px-6 md:px-10">
+        {/* Hero: compact masthead on the left, the featured piece on the right. */}
+        <section className="py-16 md:py-24">
+          <div className="grid gap-12 md:grid-cols-[0.82fr_1.18fr] md:items-center md:gap-16">
+            <div>
+              <h1 className="font-serif text-[34px] font-medium leading-[1.08] tracking-[-0.02em] text-ink md:text-[42px]">
+                Building AI systems, thinking out loud.
+              </h1>
+              <p className="mt-5 max-w-md text-[16.5px] leading-relaxed text-muted">
+                Bài viết, ghi chú và sơ đồ kiến trúc về cách mình xây dựng và vận
+                hành các hệ thống AI trong thực tế.
+              </p>
+              <div className="mt-8 flex flex-wrap items-center gap-6">
+                <Link
+                  href="/blog"
+                  className="inline-flex items-center gap-3 rounded-[11px] bg-ink py-[11px] pl-[22px] pr-[11px] text-[15px] font-medium transition-opacity hover:opacity-90"
+                  style={{ color: "var(--bg)" }}
                 >
-                  <ArrowRight />
-                </span>
-              </Link>
-              <Link
-                href="/brain"
-                className="inline-flex items-center gap-2 text-[15px] font-medium text-accent transition-colors hover:text-accent-hover"
-              >
-                Khám phá Brain <ArrowRight />
-              </Link>
+                  Read the latest
+                  <span
+                    className="inline-flex h-[26px] w-[26px] items-center justify-center rounded-full"
+                    style={{ background: "rgba(252,252,250,0.15)" }}
+                  >
+                    <ArrowRight />
+                  </span>
+                </Link>
+                <Link
+                  href="/about"
+                  className="inline-flex items-center gap-2 text-[15px] font-medium text-accent transition-colors hover:text-accent-hover"
+                >
+                  About me <ArrowRight />
+                </Link>
+              </div>
+            </div>
+
+            <div className="md:pt-1">
+              {featured ? (
+                <FeaturedPost post={featured} />
+              ) : (
+                <p className="rounded-card border border-hairline bg-surface p-8 text-[15px] text-muted">
+                  Chưa có bài viết nào. Bài đầu tiên đang được viết.
+                </p>
+              )}
             </div>
           </div>
         </section>
 
-        {/* Latest writing */}
-        <section className="pb-24">
-          <div className="mb-6 flex items-baseline justify-between">
-            <h2 className="font-serif text-[26px] font-medium tracking-[-0.02em] text-ink md:text-[27px]">
-              Bài viết gần đây
-            </h2>
-            <Link href="/brain" className="text-[14px] font-medium text-accent hover:text-accent-hover">
-              Xem tất cả
-            </Link>
-          </div>
-
-          {posts.length === 0 ? (
-            <p className="rounded-card border border-hairline bg-surface p-8 text-[15px] text-muted">
-              Chưa có bài viết nào. Bài đầu tiên đang được viết.
-            </p>
-          ) : (
-            <>
-              {featured && <FeaturedPost post={featured} />}
-              {rest.length > 0 && (
-                <div className="mt-1.5">
-                  {rest.map((post) => (
-                    <PostRow key={post.slug} post={post} />
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </section>
-      </main>
-    </div>
+        {/* Recent posts as a strip that drifts to the right on its own, with
+            drag and arrow controls for manual browsing. */}
+        {posts.length > 0 && (
+          <section className="border-t border-hairline pb-24 pt-12">
+            <div className="mb-7 flex items-baseline justify-between">
+              <h2 className="font-serif text-[26px] font-medium tracking-[-0.02em] text-ink md:text-[27px]">
+                Mới nhất
+              </h2>
+              <Link href="/blog" className="text-[14px] font-medium text-accent hover:text-accent-hover">
+                Xem tất cả
+              </Link>
+            </div>
+            <PostCarousel posts={posts} />
+          </section>
+        )}
+      </div>
+    </main>
   );
 }

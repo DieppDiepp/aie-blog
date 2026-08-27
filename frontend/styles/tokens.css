@@ -24,6 +24,7 @@
   --tag-hard-bg: rgba(180, 52, 52, 0.12);
   --tag-hard-fg: #9a2f2f;
 
-  /* Shape */
-  --radius-card: 16px;
+  /* Shape. Single source of truth; globals.css maps this into Tailwind's
+     --radius-card theme slot so the rounded-card utility resolves to it. */
+  --card-radius: 16px;
 }

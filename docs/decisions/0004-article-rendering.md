@@ -62,8 +62,8 @@ text. Ràng buộc: tùy biến tự do, an toàn, review được, hợp stack,
   Frontmatter: `title`, `summary`, `date`, `tags` (mảng `{label, variant}`),
   `draft` (tuỳ chọn, ẩn khỏi danh sách nhưng vẫn xem được qua link thẳng).
 - `frontend/lib/posts.ts` đọc thư mục `content/posts/`, trả `Post[]` cho
-  trang chủ và `/brain`, và một bài cho `/brain/[slug]`.
-- `/brain/[slug]` dùng `generateStaticParams()` nên mọi bài đã publish được
+  trang chủ và `/blog`, và một bài cho `/blog/[slug]`.
+- `/blog/[slug]` dùng `generateStaticParams()` nên mọi bài đã publish được
   build tĩnh (SSG) sẵn lúc `next build`, đúng tinh thần "xuất bản = commit + CI
   build" ở trên. Bài draft mở bằng link thẳng vẫn render được (on-demand).
 - Bộ component MDX ở `frontend/components/mdx/mdx-components.tsx`: mới có
