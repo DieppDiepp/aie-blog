@@ -12,6 +12,7 @@ next-env.d.ts
 
 # Env and secrets
 .env
+.env.prod
 *.local
 
 # OS

@@ -8,7 +8,9 @@ Cập nhật ngay khi thêm hoặc đổi bất kỳ script nào.
 - Frontend: Next.js (App Router), Tailwind, shadcn/ui, TypeScript.
 - Backend: FastAPI, SQLAlchemy 2.0, Alembic, Pydantic v2. Quản lý môi trường bằng uv.
 - Database: PostgreSQL.
-- Hạ tầng: Docker Compose, Caddy (reverse proxy, HTTPS). CI/CD bằng GitHub Actions.
+- Hạ tầng: Docker Compose. Dev dùng file `docker-compose.yml`; prod dùng
+  `compose.prod.yml`. Ra Internet qua Cloudflare Tunnel (không dùng Caddy). CI/CD bằng
+  GitHub Actions.
 
 ## Môi trường phát triển: WSL2
 
@@ -67,5 +69,15 @@ Cập nhật ngay khi thêm hoặc đổi bất kỳ script nào.
 - CI (`.github/workflows/ci.yml`): chạy trên máy ảo của GitHub, KHÔNG đụng VPS.
   Mỗi push hoặc pull request: check backend (uv sync + import) và frontend (npm build).
   Mục đích: chặn code hỏng lọt vào `main`.
-- CD (deploy lên VPS): CHƯA làm. Khi làm sẽ cần quyền VPS, secrets (SSH key), và domain.
-  Hướng dự kiến: GitHub Actions build image rồi đẩy lên VPS và chạy `docker compose up`.
+- CD (`.github/workflows/cd.yml`): đang dựng từng bước. Giai đoạn 1 ĐÃ CÓ: mỗi push
+  lên `main` sẽ build hai Docker image (api, web) và đẩy lên GHCR
+  (`ghcr.io/dieppdiepp/aie-blog-api|web`), gắn tag `latest` và tag git SHA. Dùng
+  `GITHUB_TOKEN` tự cấp (quyền `packages: write`), không cần secret thủ công cho bước này.
+- CD giai đoạn 2 (deploy lên VPS): CHƯA có job. Kế hoạch: SSH vào VPS chạy
+  `docker compose -f compose.prod.yml pull && up -d`, bơm `IMAGE_TAG=<sha>`.
+  - `compose.prod.yml`: stack prod, dùng `image:` từ GHCR thay vì `build:`, không mở
+    cổng ra host, có `restart: unless-stopped` và healthcheck.
+  - Secrets đã đặt sẵn trên GitHub: `VPS_SSH_KEY` (deploy key riêng), `VPS_HOST`,
+    `VPS_USER`, `VPS_SSH_PORT`.
+  - GHCR để private, nên VPS cần token `read:packages` để `docker login ghcr.io`.
+  - Ra Internet bằng Cloudflare Tunnel (cloudflared), không cần Caddy.

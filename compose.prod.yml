@@ -1,0 +1,56 @@
+# Production stack for the VPS. Unlike docker-compose.yml (dev), this file does
+# NOT build images from source: it pulls prebuilt images from GHCR that CI has
+# already built and tested ("build once, run anywhere"). No ports are published
+# to the host except through the cloudflared tunnel, which is the only door in.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    # Only start dependents once the database actually accepts connections.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    # IMAGE_TAG is injected by the deploy step (the git SHA); falls back to latest.
+    image: ghcr.io/dieppdiepp/aie-blog-api:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  web:
+    image: ghcr.io/dieppdiepp/aie-blog-web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      API_URL: ${API_URL}
+    # web renders statically from bundled MDX, so it does not wait on api/db.
+    # Keeping it independent means a db/api hiccup never takes the site down.
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    # Outbound-only tunnel: no published ports. Public hostname routing
+    # (hostname -> http://web:3000) is configured in the Cloudflare dashboard.
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - web
+
+volumes:
+  db_data:
