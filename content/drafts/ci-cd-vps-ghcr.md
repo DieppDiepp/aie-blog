@@ -257,7 +257,8 @@ chỉ kéo đúng bản đã được kiểm thử.
 
 Còn lại cho sau này:
 - Khi mua domain: đổi từ quick tunnel sang named tunnel gắn domain để có URL ổn định
-  và HTTPS theo tên miền riêng.
+  và HTTPS theo tên miền riêng. Cơ chế domain, DNS, nameserver, TLS giải thích riêng
+  ở bài domain-dns-tls (nên nối với bài này trong đồ thị tri thức sau này).
 - Tùy chọn: thêm bộ lọc đường dẫn cho workflow để commit chỉ sửa tài liệu không phải
   build lại image.
 
