@@ -151,6 +151,41 @@ key mà dùng thì phải cất key vào kho của GitHub trước.
 Đã trả lời ở mục 1. Tóm lại: CI build native để kiểm tra nhanh, CD build image để
 tạo bản đóng gói đem chạy nơi khác. Khác mục đích, không phải làm thừa.
 
+### "Mỗi image có hai tag latest và một chuỗi dài, nghĩa là gì?"
+
+Tag là cái nhãn dán lên một phiên bản image, và một image dán được nhiều nhãn.
+`latest` là nhãn di động, luôn chỉ về bản build mới nhất. Chuỗi dài là git SHA, nhãn
+bất biến gắn cứng vào đúng một commit, không bao giờ đổi. Hiện cả hai chỉ về cùng
+một image, nhưng lần build sau `latest` nhảy sang image mới còn nhãn SHA cũ đứng yên.
+Nhờ vậy muốn quay về bản cũ chỉ cần gọi đúng nhãn SHA của nó.
+
+Nơi định nghĩa: trong `cd.yml`, khối `tags:` liệt kê hai dòng, trong đó
+`${{ github.sha }}` là biến GitHub tự điền bằng SHA của commit đang build.
+
+### "Trong log CD có mấy bước Post Build, Post Log in... là gì?"
+
+Nhiều GitHub Action có hai phần: phần chính (làm việc) và phần Post (dọn dẹp). Phần
+Post tự chạy ở cuối job theo thứ tự ngược, để dọn thứ action đã dựng lên: đăng nhập
+xong thì đăng xuất, dựng builder xong thì tháo, build xong thì chốt cache. Đây là
+bước tự động và lành mạnh, mình không viết ra. Runner là máy dùng một lần rồi vứt,
+nên dọn credential trước khi vứt là tốt.
+
+### "Token báo thiếu scope read:packages là sao?"
+
+Mỗi token GitHub có một danh sách scope, tức quyền được làm gì. Token của gh CLI trên
+máy mình không có quyền đọc packages, nên khi gọi API liệt kê package thì bị từ chối.
+Đây không phải lỗi: image vẫn đẩy lên được vì token trong pipeline có quyền ghi
+packages, một quyền khác. Điểm nối quan trọng: VPS cũng cần đúng quyền đọc packages
+này để kéo image private về, nên đó là token phải tạo ở bước deploy.
+
+### "VPS kéo image về được định nghĩa ở đâu? Có cần thêm một file CI/CD nữa không?"
+
+Hiện chưa định nghĩa ở đâu cả. File CD mới dừng ở bước đẩy image lên registry, chưa
+có gì bảo VPS kéo về. Và không cần file mới: chỉ thêm một job thứ hai vào chính file
+CD đó, tên là deploy, chạy sau job build, nội dung là SSH vào VPS chạy lệnh kéo image
+và dựng lại container. VPS không tự chạy CI/CD; lệnh kéo nằm trong job deploy, mà job
+đó chạy trên máy ảo của GitHub rồi SSH vào VPS thực thi từ xa.
+
 ## 7. Các quyết định đã chốt
 
 - Đẩy image qua registry GHCR (không build trên VPS, không copy file tar thủ công).
