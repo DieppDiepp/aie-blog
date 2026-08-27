@@ -88,7 +88,10 @@ jobs:
             export IMAGE_TAG=${{ github.sha }}
             docker compose -f compose.prod.yml --env-file .env.prod pull
             docker compose -f compose.prod.yml --env-file .env.prod up -d
-            docker image prune -f
+            # Remove images no longer used by any container. Uses -a because old
+            # versions keep their SHA tag, so dangling-only prune would leave them
+            # and disk usage would grow with every deploy.
+            docker image prune -a -f
             # Surface the random quick-tunnel URL in the Actions log.
             sleep 8
             echo "=== Quick tunnel URL ==="
