@@ -73,11 +73,17 @@ Cập nhật ngay khi thêm hoặc đổi bất kỳ script nào.
   lên `main` sẽ build hai Docker image (api, web) và đẩy lên GHCR
   (`ghcr.io/dieppdiepp/aie-blog-api|web`), gắn tag `latest` và tag git SHA. Dùng
   `GITHUB_TOKEN` tự cấp (quyền `packages: write`), không cần secret thủ công cho bước này.
-- CD giai đoạn 2 (deploy lên VPS): CHƯA có job. Kế hoạch: SSH vào VPS chạy
-  `docker compose -f compose.prod.yml pull && up -d`, bơm `IMAGE_TAG=<sha>`.
+- CD giai đoạn 2 (deploy lên VPS): ĐÃ CÓ (job `deploy` trong `cd.yml`, chạy sau khi
+  build xong). Job SSH vào VPS, copy `compose.prod.yml` lên, rồi chạy
+  `docker compose -f compose.prod.yml --env-file .env.prod pull && up -d` với
+  `IMAGE_TAG=<git sha>` để VPS chạy đúng bản của commit.
   - `compose.prod.yml`: stack prod, dùng `image:` từ GHCR thay vì `build:`, không mở
     cổng ra host, có `restart: unless-stopped` và healthcheck.
   - Secrets đã đặt sẵn trên GitHub: `VPS_SSH_KEY` (deploy key riêng), `VPS_HOST`,
     `VPS_USER`, `VPS_SSH_PORT`.
-  - GHCR để private, nên VPS cần token `read:packages` để `docker login ghcr.io`.
-  - Ra Internet bằng Cloudflare Tunnel (cloudflared), không cần Caddy.
+  - GHCR để private: đã `docker login ghcr.io` một lần trên VPS bằng PAT
+    `read:packages`, Docker nhớ credential nên pull sau không cần login lại.
+  - `.env.prod` (mật khẩu DB, ...) nằm trên VPS tại `~/aie-blog/`, không vào git.
+  - Ra Internet bằng Cloudflare quick tunnel (`cloudflared tunnel --url http://web:3000`),
+    không token, không domain. URL ngẫu nhiên `*.trycloudflare.com`, đọc trong log
+    cloudflared (job deploy tự in ra). Muốn URL ổn định thì đổi sang named tunnel + domain.

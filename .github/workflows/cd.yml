@@ -51,3 +51,45 @@ jobs:
             ghcr.io/dieppdiepp/aie-blog-web:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # CD stage 2: tell the VPS to run the images just pushed. Runs only after the
+  # build succeeds. All work happens over SSH from the GitHub runner; the VPS
+  # never builds. Connection details and the deploy key come from repo secrets.
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code (to get compose.prod.yml)
+        uses: actions/checkout@v4
+
+      # Ship the latest compose file to the VPS so its stack definition never
+      # drifts from the repo. Secrets (.env.prod) already live on the VPS.
+      - name: Copy compose.prod.yml to the VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.VPS_SSH_PORT }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: compose.prod.yml
+          target: /home/${{ secrets.VPS_USER }}/aie-blog
+
+      # Pull the exact images for this commit and restart the stack. IMAGE_TAG
+      # is the git SHA, so the VPS runs the same bytes CI built and tested.
+      - name: Pull images and restart the stack
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.VPS_SSH_PORT }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd ~/aie-blog
+            export IMAGE_TAG=${{ github.sha }}
+            docker compose -f compose.prod.yml --env-file .env.prod pull
+            docker compose -f compose.prod.yml --env-file .env.prod up -d
+            docker image prune -f
+            # Surface the random quick-tunnel URL in the Actions log.
+            sleep 8
+            echo "=== Quick tunnel URL ==="
+            docker compose -f compose.prod.yml logs cloudflared | grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' | tail -1

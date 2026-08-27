@@ -46,9 +46,11 @@ services:
   cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
-    # Outbound-only tunnel: no published ports. Public hostname routing
-    # (hostname -> http://web:3000) is configured in the Cloudflare dashboard.
-    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    # Quick tunnel: Cloudflare assigns a random *.trycloudflare.com URL that
+    # forwards to web:3000 over the internal network. No token and no domain
+    # needed. The URL changes on every restart and is printed in this service's
+    # logs. For temporary/testing use, not a stable production address.
+    command: tunnel --no-autoupdate --url http://web:3000
     depends_on:
       - web
 
