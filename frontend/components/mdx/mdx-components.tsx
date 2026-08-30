@@ -1,4 +1,5 @@
 import type { MDXComponents } from "mdx/types";
+import Image from "next/image";
 import { slugify } from "@/lib/toc";
 
 // Flatten heading children into a plain string so we can derive a stable anchor
@@ -59,6 +60,30 @@ export const mdxComponents: MDXComponents = {
       {...props}
     />
   ),
+  // Article images live on the media CDN (R2), not in the repo. Use next/image
+  // (lazy by default) so there is no <img> LCP warning; SVG diagrams are served
+  // `unoptimized` (no point optimizing vectors, and it avoids dangerouslyAllowSVG).
+  // width/height are nominal: the responsive style keeps each SVG's own aspect.
+  // The alt text doubles as a caption.
+  img: ({ src, alt }) =>
+    typeof src === "string" ? (
+      <figure className="my-8">
+        <Image
+          src={src}
+          alt={alt ?? ""}
+          width={1600}
+          height={900}
+          unoptimized
+          className="mx-auto rounded-card border border-hairline bg-surface"
+          style={{ width: "100%", height: "auto" }}
+        />
+        {alt ? (
+          <figcaption className="mt-2.5 text-center text-[13px] leading-snug text-muted">
+            {alt}
+          </figcaption>
+        ) : null}
+      </figure>
+    ) : null,
   // Inline code gets a small pill. Nested inside <pre>, it is reset to plain
   // text below so a fenced block doesn't render a pill-inside-a-card.
   code: (props) => (
@@ -67,9 +92,13 @@ export const mdxComponents: MDXComponents = {
       {...props}
     />
   ),
-  pre: (props) => (
+  // Shiki emits its own <pre class="shiki" style="background/color"> with colored
+  // token spans. Keep the frame (border, rounded, padding, scroll) and merge
+  // Shiki's class + inline style so its theme colors win. The [&>code] resets
+  // neutralize the inline-code pill when a <code> sits inside a fenced block.
+  pre: ({ className, ...props }) => (
     <pre
-      className="mt-6 overflow-x-auto rounded-card border border-hairline bg-surface p-5 font-mono text-[14px] leading-[1.65] text-ink-body [&>code]:bg-transparent [&>code]:p-0 [&>code]:text-inherit"
+      className={`mt-6 overflow-x-auto rounded-card border border-hairline p-5 font-mono text-[14px] leading-[1.65] [&>code]:bg-transparent [&>code]:p-0 [&>code]:text-[14px] [&>code]:font-normal ${className ?? ""}`}
       {...props}
     />
   ),

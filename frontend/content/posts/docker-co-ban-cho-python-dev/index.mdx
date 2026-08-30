@@ -1,179 +1,254 @@
 ---
-title: "Docker cơ bản cho người code Python"
-summary: "Hiểu image, container và volume qua đúng phép loại suy của người viết Python: image là class, container là instance của class đó."
+title: "Docker cho người mới: đọc hiểu một dự án web thật"
+summary: "Học Docker từ một dự án web thật: đọc docker-compose và Dockerfile, hiểu image, container, volume và mạng nội bộ qua stack FastAPI, Next.js, PostgreSQL."
 date: "2026-08-24"
+thumbnail: "https://media.aiengineerblog.com/posts/docker-co-ban-cho-python-dev/cover.svg?v=3"
 tags:
+  - label: "Docker"
+    variant: "topic"
   - label: "Hệ thống"
     variant: "topic"
   - label: "Trung bình"
     variant: "mid"
 ---
 
-## 1. Anchor nền: image và container
+Bạn clone một dự án web về máy, mở ra thấy một đống thư mục lạ và một file tên `docker-compose.yml`. Gõ đúng một dòng, vài chục giây sau cả trang web chạy được ở `localhost:3000`, kèm một database và một API, dù bạn chưa cài Postgres hay Python nào trên máy. Docker làm được điều đó.
 
-| Docker | Python | Ý nghĩa |
-|---|---|---|
-| image | class | Bản thiết kế, khuôn. Nằm im trên đĩa. |
-| container | instance (obj = MyClass()) | Một bản đang chạy, đúc ra từ khuôn. |
-| docker run image | MyClass() | Lấy khuôn tạo ra một vật thể sống. |
+Bài này đi qua đúng một dự án thật (chính trang blog bạn đang đọc) để thấy Docker làm gì và các mảnh ghép ăn khớp ra sao. Cách tiếp cận: đọc code trước, gọi tên khái niệm sau, và mỗi thuật ngữ mới sẽ được định nghĩa ngay tại chỗ trước khi đi tiếp.
 
-Quan hệ: 1 image tạo ra nhiều container (như 1 class tạo nhiều object).
-Không có chuyện 1 container chứa nhiều image.
+## 1. Docker giải quyết vấn đề gì
 
-## 2. Phân cấp đúng (kèm số lượng)
+Phần mềm hay dính câu "máy tôi chạy được mà". Máy bạn có Python 3.12, máy đồng nghiệp có 3.10; server thì thiếu một thư viện hệ thống. Cùng một đoạn code, ba máy ba kết quả. Nguyên nhân là app không sống một mình: nó phụ thuộc vào cả một môi trường xung quanh (phiên bản ngôn ngữ, thư viện, cấu hình hệ điều hành).
 
-```
-docker-compose.yml           1 file duy nhất (đỉnh, mô tả cả hệ thống)
-  └─ services                n service (vd 3: db, api, web)
-       │                     mỗi service = 1 bản mô tả cách chạy
-       └─ container           1 service -> 1..n container (replica)
-            └─ image          1 container chạy từ đúng 1 image
-                              chiều ngược lại: 1 image -> 0..n container
-```
+Docker xử lý bằng cách đóng gói app CÙNG toàn bộ môi trường của nó vào một khối chạy giống hệt nhau ở mọi máy. Khối đóng gói đó gọi là image, và khi đem ra chạy thì thành container.
 
-## 3. Ba file và cổng: Dockerfile, docker-compose.yml, .env, port
+> Image: bản đóng gói tĩnh gồm app và mọi thứ cần để chạy nó (một hệ điều hành thu nhỏ, runtime của ngôn ngữ, các thư viện). Nó nằm im trên đĩa, chưa chạy.
 
-- Dockerfile: công thức build ra MỘT image (một service).
-- docker-compose.yml: nhạc trưởng, mô tả nhiều service chạy cùng nhau và cách nối mạng.
-- .env: nơi để giá trị cấu hình, Compose tự đọc.
-- port: cửa để bên ngoài vào container, và để container gọi nhau.
+> Container: một image đang chạy. Từ một image có thể tạo ra nhiều container, giống như từ một class (khuôn) tạo ra nhiều object (vật thể). Lệnh `docker run <image>` chính là bước "lấy khuôn đúc ra một vật thể sống".
 
-`docker compose up --build` chỉ build lại các service CÓ khai báo `build:`.
-Service `db` dùng `image: postgres:16` có sẵn trên Docker Hub nên chỉ cần pull, không build.
+Quan hệ một chiều: một image sinh ra nhiều container, còn một container luôn chạy từ đúng một image. Nắm hai từ này là đủ để đọc tiếp.
 
-## 4. Build context: thư mục frontend TRỞ THÀNH /app
+## 2. Nhìn toàn cảnh dự án trước
 
-`web: build: ./frontend` đặt thư mục `frontend` làm build context.
-Nên `COPY . .` copy NỘI DUNG bên trong `frontend/` vào thẳng `/app`,
-không tạo `/app/frontend/`. Cái tên `frontend` biến mất ở ranh giới context.
+Trước khi mổ từng file, hãy xem dự án có những gì. Một trang web thường có ba phần việc tách biệt, và dự án này cũng vậy.
 
-Cạm bẫy: đừng tưởng có lớp thư mục `frontend` bên trong container.
+![Cấu trúc thư mục dự án: docker-compose.yml điều phối, backend là service api (FastAPI), frontend là service web (Next.js), còn db dùng image PostgreSQL có sẵn.](https://media.aiengineerblog.com/posts/docker-co-ban-cho-python-dev/codebase-structure.svg?v=3)
 
-## 5. Multi-stage build: build ở nơi bừa bộn, ship ở nơi gọn gàng
+Ba phần việc đó là:
 
-Frontend Dockerfile có 2 stage:
+- web: phần giao diện người dùng nhìn thấy, viết bằng Next.js. Nằm trong thư mục `frontend/`.
+- api: phần xử lý logic và trả dữ liệu, viết bằng FastAPI (Python). Nằm trong thư mục `backend/`.
+- db: phần lưu dữ liệu, dùng PostgreSQL. Nó KHÔNG có thư mục riêng, vì ta dùng thẳng một image có sẵn thay vì tự viết.
 
-- Stage builder (node:20-slim): cài node_modules, chạy `npm run build`, sinh ra
-  `.next/standalone` và `.next/static`. Đây là stage TẠM, xong thì bỏ.
-- Stage runner (node:20-slim): chỉ `COPY --from=builder` những thứ cần để chạy.
-  Đây mới là image cuối cùng được ship.
+![Techstack của dự án: Next.js cho frontend (service web), FastAPI cho backend (service api), PostgreSQL cho database (service db), cả ba đóng gói và chạy bằng Docker.](https://media.aiengineerblog.com/posts/docker-co-ban-cho-python-dev/tech-stack.svg?v=3)
 
-Mấu chốt: chỉ image runner được giữ. Stage builder bị bỏ tự động, KHÔNG cần xoá tay.
-Muốn dọn build cache lâu ngày thì tuỳ chọn: `docker builder prune`.
+Mỗi phần việc như vậy, trong Docker, gọi là một service.
 
-Anchor Python: giống dùng một venv dev đầy đủ để đóng gói ra wheel, rồi chỉ ship
-wheel vào môi trường production tối giản. Không ai ship cả venv dev.
+> Service: một thành phần chạy độc lập trong hệ thống. Ở đây có ba service là web, api, db. Việc mô tả từng service (dựng thế nào, chạy ra sao, nối với nhau ra sao) nằm gọn trong một file duy nhất: `docker-compose.yml`.
 
-Ghi chú: `WORKDIR /app` nên `./` trong lệnh COPY chính là `/app`.
+Nhớ mặt ba cái tên web, api, db từ đây: ở mục 3, chúng xuất hiện đúng nguyên văn làm tên ba service trong `docker-compose.yml`. Tên service bạn đặt trong file đó cũng chính là địa chỉ để các phần gọi nhau trong mạng nội bộ Docker (mục 4).
 
-## 6. Vì sao JS cần build, còn Python chạy thẳng
+## 3. docker-compose.yml: đọc file thật rồi mới giải thích
 
-Python chạy thẳng file .py. Next.js (TypeScript + JSX) cần một bước build để dịch
-TS sang JS, gộp và tối ưu file, dựng sẵn trang. Nên image chỉ cần copy THÀNH PHẨM
-(`.next/standalone`), không cần mã nguồn gốc. Đó là lý do có 2 stage.
+Đây là file điều phối cả hệ thống, bản dùng cho môi trường phát triển:
 
-## 7. .env có hai cơ chế khác nhau (điểm hay nhầm)
+```yaml
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
 
-```
-.env (cùng thư mục docker-compose.yml)
-  Compose TỰ ĐỘNG đọc, không cần khai báo lệnh load.
-  -> thay thế các ${POSTGRES_USER}, ${API_URL} trong chính file compose (compose-time)
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
 
-environment:        cơ chế thứ hai, khác hẳn
-  API_URL: ${API_URL}   set biến môi trường BÊN TRONG container lúc chạy
-```
+  web:
+    build: ./frontend
+    environment:
+      API_URL: ${API_URL}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
 
-Không có "lệnh load .env" vì đó là convention của Compose.
-
-## 8. Cạm bẫy kinh điển: trình duyệt KHÔNG nằm trong mạng Docker
-
-Hai chiều gọi khác nhau:
-
-```
-Chiều vào  (ai đó mở web): trình duyệt -> localhost:3000 -> container web
-Chiều ra   (web gọi api):  server web trong container -> http://api:8000 -> container api
+volumes:
+  db_data:
 ```
 
-- `http://api:8000` dùng được vì `api` là TÊN SERVICE, Docker network biến nó thành
-  hostname nội bộ (như DNS mini). Chỉ các container trong cùng mạng mới phân giải được.
-- Trình duyệt chạy trên máy thật, KHÔNG ở trong mạng Docker, nên nó không hiểu `api`.
-  Fetch phía trình duyệt phải dùng địa chỉ máy thật thấy được, vd `localhost:8000`.
+> docker-compose.yml: bản mô tả nhiều service chạy cùng nhau và cách chúng nối mạng, chia sẻ cấu hình, lưu dữ liệu. Một lệnh `docker compose up` đọc file này và dựng cả hệ thống.
 
-Quy tắc nhớ: fetch phía server dùng tên service, fetch phía trình duyệt dùng localhost.
+Ánh xạ file trên ra sơ đồ cho dễ hình dung:
 
-## 9. Volume: dữ liệu bền, sống ngoài vòng đời container
+![Sơ đồ kiến trúc docker-compose: ba service web, api, db nằm trong một mạng Docker nội bộ; port mapping mở cửa từ máy thật vào container; volume db_data giữ dữ liệu của db.](https://media.aiengineerblog.com/posts/docker-co-ban-cho-python-dev/compose-architecture.svg?v=3)
 
-Hệ thống file trong container là phù du: `docker compose down` là mất sạch.
-Named volume `db_data` gắn vào thư mục dữ liệu của Postgres để dữ liệu sống độc lập:
-xoá container dựng lại vẫn còn. Chỉ `docker compose down -v` mới xoá luôn volume.
+Đọc từng khối trong file:
 
-Anchor Python: để dữ liệu ở thư mục cố định, thay vì nhét trong .venv (thứ xoá dựng thoải mái).
+- `image: postgres:16` (ở service db): lấy một image PostgreSQL phiên bản 16 dựng sẵn trên Docker Hub. Vì đã có sẵn nên chỉ cần tải về, không phải build.
+- `build: ./backend` và `build: ./frontend`: hai service này KHÔNG có image sẵn, phải tự dựng từ mã nguồn trong thư mục tương ứng (dựng bằng công thức trong Dockerfile, xem mục 5).
+- `environment`: đặt biến cấu hình bên trong container lúc chạy (ví dụ mật khẩu database, địa chỉ api). Các giá trị `${...}` được lấy từ file `.env`, sẽ nói ở mục 6.
+- `ports`: mở cửa cho bên ngoài truy cập vào container.
+- `volumes` và `db_data`: nơi giữ dữ liệu bền cho database.
+- `depends_on`: khai báo thứ tự khởi động.
 
-## 10. Mạng nội bộ Docker: các service tìm và gọi nhau thế nào
+Hai từ cuối cần định nghĩa rõ vì hay gây nhầm.
 
-Compose tạo MỘT mạng riêng nội bộ (không mô phỏng cả Internet). Mỗi container như
-một máy riêng trong mạng đó. Docker cấp DNS: tên service chính là hostname.
+> Port mapping (dạng `"3000:3000"`, host:container): mở một cổng của máy thật và nối nó vào một cổng bên trong container. Nhờ dòng `"3000:3000"` mà từ máy thật gõ `localhost:3000` là chạm được vào web. Số bên trái là cổng máy thật, số bên phải là cổng trong container.
 
-- Trong mạng: `web -> api:8000 -> db:5432`, dùng TÊN SERVICE, không dùng localhost.
-- Docker DNS phân giải `api`, `db` tới đúng container. Container bị tạo lại, IP đổi,
-  gọi bằng tên vẫn đúng. Đó là lợi ích của gọi theo tên thay vì IP cứng.
+> Volume: vùng lưu dữ liệu nằm NGOÀI container, sống độc lập với vòng đời container. Hệ thống file bên trong container là phù du: `docker compose down` là mất sạch. `db_data` gắn vào thư mục dữ liệu của Postgres nên xóa container dựng lại vẫn còn dữ liệu. Chỉ `docker compose down -v` mới xóa luôn volume.
 
-Hai phạm vi mạng khác nhau:
+Còn `depends_on` có một cái bẫy: nó chỉ bảo đảm thứ tự KHỞI ĐỘNG (db chạy trước api, api trước web), chứ KHÔNG bảo đảm service đã sẵn sàng nhận việc. Postgres có thể đã khởi động nhưng còn đang khởi tạo bên trong. Hệ thống thật cần thêm healthcheck để chờ tới lúc thực sự sẵn sàng (bản prod của dự án này có làm, còn bản dev thì giữ tối giản).
 
-```
-Từ máy thật vào container:  qua port mapping "3000:3000" (host:container)
-                            dùng localhost:3000, localhost:8000
-Giữa các container:         dùng tên service (api:8000, db:5432)
+Lệnh chạy cả hệ thống:
+
+```bash
+docker compose up --build
 ```
 
-Không dùng localhost giữa các container, vì bên trong một container `localhost` nghĩa
-là chính container đó. `web` gọi `localhost:8000` là tự tìm cổng 8000 trong chính
-`web`, không phải tới `api`.
+Cờ `--build` bảo Docker dựng lại các service có `build:` (api, web) trước khi chạy; service db chỉ cần tải image nên không bị dựng.
 
-Luồng đầy đủ một request:
+## 4. Cổng và mạng: các service tìm nhau bằng cách nào
 
+Khi chạy, Docker Compose tạo MỘT mạng riêng nội bộ và bỏ cả ba container vào đó. Trong mạng này, mỗi container như một máy riêng, và Docker cấp sẵn một dịch vụ phân giải tên: tên service chính là địa chỉ để gọi.
+
+> Mạng nội bộ Docker: một mạng ảo riêng cho các container của cùng một dự án. Bên trong nó, gọi nhau bằng TÊN service (ví dụ `api:8000`, `db:5432`), không dùng `localhost`. Docker tự dịch tên service sang đúng container, nên dù container bị dựng lại và đổi địa chỉ nội bộ, gọi theo tên vẫn trúng.
+
+Điểm khiến người mới vấp nhiều nhất: trình duyệt KHÔNG nằm trong mạng Docker. Nó chạy trên máy thật của người dùng, nên nó không hiểu cái tên `api`. Hãy nhìn một request đi trọn vòng:
+
+![Luồng một request: trình duyệt (ngoài mạng Docker) gọi localhost:3000 tới web; server web gọi api:8000; api gọi db:5432; dữ liệu trả ngược lại thành JSON rồi HTML. Trình duyệt không bao giờ gọi thẳng api.](https://media.aiengineerblog.com/posts/docker-co-ban-cho-python-dev/request-flow.svg?v=3)
+
+Đọc theo số:
+
+1. Trình duyệt gõ `localhost:3000` để mở trang. Nó chỉ nói chuyện được với web, qua cổng đã mở bằng port mapping.
+2. Trang blog là một Server Component, nghĩa là chính SERVER web (đang chạy trong mạng Docker) đi lấy dữ liệu, chứ không phải trình duyệt. Server web gọi `api:8000` bằng tên service.
+3. api chạy câu lệnh SQL tới `db:5432`, cũng bằng tên service.
+4. Dữ liệu trả ngược: db trả các dòng cho api, api gói thành JSON cho web, web dựng thành HTML gửi về trình duyệt.
+
+> Server Component: một trang Next.js mà phần lấy dữ liệu chạy trên máy chủ (server) trước khi gửi HTML về, thay vì để trình duyệt tự gọi. Vì việc gọi `api` diễn ra ở server (trong mạng Docker) nên dùng tên service là hợp lệ.
+
+Quy tắc gọn để nhớ: gọi từ phía server thì dùng tên service (`api:8000`); gọi từ phía trình duyệt thì phải dùng địa chỉ máy thật thấy được (`localhost:8000`). Lý do `localhost` không dùng được giữa các container: bên trong một container, `localhost` nghĩa là chính container đó. Nếu web gọi `localhost:8000`, nó tự tìm cổng 8000 trong chính web, chứ không tới api.
+
+Một điểm nữa: biến môi trường như `API_URL=http://api:8000` chỉ là "tấm bản đồ ghi địa chỉ", nó không tự tạo kết nối. Chính hàm `fetch()` (bên web) và thư viện truy vấn SQL (bên api) mới mở kết nối thật. Ba vai tách biệt: biến môi trường nói địa chỉ nào, code thực hiện cuộc gọi, còn mạng Docker cho phép tìm nhau bằng tên.
+
+## 5. Dockerfile: công thức build ra một image
+
+Service db dùng image có sẵn, nhưng api và web thì phải tự dựng. Công thức dựng nằm trong file Dockerfile của mỗi thư mục.
+
+> Dockerfile: một danh sách bước tuần tự để dựng ra MỘT image. Mỗi dòng lệnh tạo ra một lớp (layer) xếp chồng lên nhau. Docker nhớ (cache) từng lớp, nên lần build sau chỉ dựng lại lớp nào có thay đổi.
+
+Xem Dockerfile của backend, nó ngắn và dễ đọc:
+
+```dockerfile
+FROM python:3.12-slim
+
+# Install uv, the Python environment and dependency manager.
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+WORKDIR /app
+
+# Install dependencies first so this layer caches when only source changes.
+COPY pyproject.toml ./
+RUN uv sync --no-dev
+
+# Copy application source.
+COPY app ./app
+
+EXPOSE 8000
+
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
-Browser -> localhost:3000/blog -> web (Next.js server)
-web -> api:8000/posts -> api (FastAPI)
-api -> db:5432 (SQL) -> db (PostgreSQL)
-db trả rows -> api trả JSON -> web render HTML -> Browser
+
+Vài điểm đáng học ở đây:
+
+- `FROM python:3.12-slim`: mọi image dựng từ một image nền. Ở đây nền là Python 3.12 bản gọn.
+- Thứ tự CỐ Ý: copy `pyproject.toml` (file khai báo thư viện) và cài thư viện TRƯỚC, rồi mới copy mã nguồn `app`. Vì Docker cache theo lớp, khi bạn chỉ sửa code mà không đổi thư viện, lớp cài thư viện được tái dùng, build nhanh hơn nhiều. Đảo thứ tự thì mỗi lần sửa code sẽ cài lại toàn bộ thư viện, rất phí.
+- `EXPOSE 8000` và `CMD ...`: khai báo cổng service lắng nghe và lệnh chạy khi container khởi động.
+
+> WORKDIR /app: đặt `/app` làm thư mục làm việc mặc định trong image. Vì thế `COPY app ./app` là copy vào `/app/app`, và mọi đường dẫn tương đối sau đó tính từ `/app`.
+
+Có một điểm dễ hiểu lầm về `build: ./frontend` trong compose. Thư mục `frontend` được đặt làm "gốc" khi build (gọi là build context), nên bên trong image, NỘI DUNG của `frontend/` nằm thẳng ở `/app`, chứ không tạo ra `/app/frontend/`. Cái tên `frontend` biến mất ở ranh giới đó.
+
+Dockerfile của frontend nhỉnh hơn một bậc: nó chia làm hai chặng (multi-stage).
+
+```dockerfile
+FROM node:20-slim AS builder
+WORKDIR /app
+COPY package.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM node:20-slim AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/content ./content
+EXPOSE 3000
+CMD ["node", "server.js"]
 ```
 
-Vì `blog/page.tsx` là Server Component async, chính SERVER Next.js trong container
-`web` gọi `api`. Trình duyệt KHÔNG gọi `api:8000` (hostname đó chỉ tồn tại trong mạng
-Docker, máy người dùng không biết).
+![Multi-stage build của frontend: stage builder cài thư viện và chạy npm run build để sinh thành phẩm; stage runner chỉ chép sang các thành phẩm cần để chạy, nên image cuối gọn và nhỏ.](https://media.aiengineerblog.com/posts/docker-co-ban-cho-python-dev/multi-stage-build.svg?v=3)
 
-Backend không gọi ngược lên frontend. Nó trả response trên chính connection mà `web`
-đã mở. Giao tiếp hai chiều diễn ra trên cùng một connection HTTP.
+> Multi-stage build: một Dockerfile có nhiều chặng (`FROM ... AS ten`). Chặng đầu là nơi làm việc bừa bộn (cài đủ thư viện, biên dịch), chặng cuối chỉ chép sang những thành phẩm cần để chạy. Chỉ image của chặng cuối được giữ lại; các chặng tạm bị bỏ tự động, không phải xóa tay.
 
-Ba vai trò tách biệt, đừng gộp làm một:
+Vì sao frontend cần hai chặng còn backend thì không? Vì Python chạy thẳng file `.py`, không cần biên dịch. Còn Next.js (TypeScript và JSX) phải qua một bước `npm run build` để dịch sang JavaScript, gộp và tối ưu file, dựng sẵn trang. Sau bước đó, image chỉ cần THÀNH PHẨM (`.next/standalone` và bạn hữu), không cần mã nguồn gốc lẫn đống thư viện dev. Tách hai chặng giúp image cuối nhỏ hơn nhiều và ít bề mặt lỗi.
 
+Nếu bạn quen Python: nó giống việc dùng một môi trường dev đầy đủ để đóng gói ra một wheel, rồi chỉ mang wheel sang môi trường production tối giản. Không ai mang cả môi trường dev đi ship.
+
+Dòng cuối cũng đáng chú ý: bản build "standalone" của Next.js không tự gói các file bài viết trong `content/`, nên Dockerfile phải chép thêm `content` vào để server đọc lúc chạy. Đây là chi tiết riêng của dự án này, nhưng nó minh họa đúng tinh thần: image cuối chứa vừa đủ thứ cần để chạy.
+
+## 6. .env: hai cơ chế khác nhau, hay bị gộp làm một
+
+Trong compose bạn thấy nhiều `${...}`. Giá trị của chúng đến từ file `.env` đặt cạnh `docker-compose.yml`:
+
+```bash
+POSTGRES_USER=aie
+POSTGRES_PASSWORD=aie
+POSTGRES_DB=aie_blog
+DATABASE_URL=postgresql+psycopg://aie:aie@db:5432/aie_blog
+FRONTEND_ORIGIN=http://localhost:3000
+API_URL=http://api:8000
 ```
-Environment variable  = tấm bản đồ địa chỉ (API_URL, DATABASE_URL)
-fetch / SQLAlchemy     = phương tiện thực sự thực hiện cuộc gọi
-Docker network + DNS   = cho phép service tìm thấy nhau bằng tên
-```
 
-Biến môi trường chỉ nói "gọi tới địa chỉ nào", nó không tự tạo connection.
-Chính `fetch()` (frontend) và SQLAlchemy/psycopg (backend) mới mở kết nối thật.
+Điểm hay nhầm là có HAI cơ chế khác hẳn nhau, dù trông đều liên quan tới biến:
 
-`depends_on` chỉ định thứ tự KHỞI ĐỘNG (`db` trước `api` trước `web`), nhưng KHÔNG
-đảm bảo service đã sẵn sàng nhận request. Postgres có thể đã start nhưng còn đang khởi
-tạo. Hệ thống lớn hơn cần thêm `healthcheck` và điều kiện chờ healthy.
+- File `.env` cạnh compose: Compose TỰ ĐỘNG đọc file này (một quy ước, không cần khai lệnh load) và thay các `${POSTGRES_USER}`, `${API_URL}`... ngay trong file compose. Việc thay diễn ra lúc đọc file compose, trước khi container chạy.
+- Khối `environment:` trong compose: đây là cơ chế thứ hai, đặt biến môi trường BÊN TRONG container lúc chạy, để code trong container đọc được.
 
-FRONTEND_ORIGIN và CORS: trong dự án này `main.py` CÓ dùng `frontend_origin` để cấu
-hình `CORSMiddleware` (`allow_origins=[settings.frontend_origin]`), nên biến này có
-tác dụng thật. Nuance quan trọng: luồng hiện tại fetch phía server (`web` gọi `api`)
-nên CORS KHÔNG bị kích hoạt cho call đó, vì CORS là cơ chế của TRÌNH DUYỆT. CORS chỉ
-có ý nghĩa khi trình duyệt gọi thẳng `api` (vd sau này thêm fetch phía client tới
-`localhost:8000`).
+Nói gọn: `.env` cấp giá trị cho chính file compose; `environment:` bơm biến vào trong container. Một cái là "điền chỗ trống trong bản mô tả", một cái là "trang bị cho container lúc sống".
 
-Bảng tổng kết vai trò:
+Để ý `DATABASE_URL` trỏ tới `@db:5432` và `API_URL` trỏ tới `http://api:8000`: cả hai dùng TÊN SERVICE, đúng như mục 4, vì đó là các cuộc gọi diễn ra bên trong mạng Docker.
 
-```
-API_URL         web dùng để biết địa chỉ api
-DATABASE_URL    api dùng để biết địa chỉ db
-FRONTEND_ORIGIN api dùng để cấu hình CORS (cho trình duyệt gọi thẳng api)
-ports           cho máy thật / bên ngoài truy cập container
-service name    cho các container gọi nhau trong mạng Docker
-```
+## 7. Bảng tra nhanh
+
+Gom lại các vai để khi quên thì liếc một cái là nhớ:
+
+| Thành phần | Vai trò |
+|---|---|
+| image | bản đóng gói tĩnh, khuôn để tạo container |
+| container | một image đang chạy |
+| volume | vùng dữ liệu bền, sống ngoài vòng đời container |
+| service | một thành phần trong hệ thống (web, api, db) |
+| Dockerfile | công thức dựng ra một image |
+| docker-compose.yml | bản điều phối nhiều service chạy cùng nhau |
+| ports (host:container) | cửa cho máy thật vào container |
+| tên service | địa chỉ để các container gọi nhau trong mạng Docker |
+| .env | cấp giá trị cho các `${...}` trong file compose |
+| environment | đặt biến môi trường bên trong container lúc chạy |
+| depends_on | thứ tự khởi động, KHÔNG bảo đảm đã sẵn sàng |
+
+Nắm bảng này là bạn đọc được phần lớn cấu hình Docker của một dự án web thường gặp. Bước tiếp theo tự nhiên là xem cùng dự án đó lên server thật ra sao (bản `compose.prod.yml`, image dựng sẵn, đưa ra Internet qua Cloudflare), nhưng đó là câu chuyện của một bài khác.

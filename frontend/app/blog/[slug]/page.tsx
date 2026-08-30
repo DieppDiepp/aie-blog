@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
+import rehypeShiki from "@shikijs/rehype";
 import { getAllPosts, getPostBySlug } from "@/lib/posts";
 import { TagList } from "@/components/ui/Tag";
 import { Thumbnail } from "@/components/post/Thumbnail";
@@ -95,7 +96,14 @@ export default async function ArticlePage({ params }: Params) {
                 <MDXRemote
                   source={post.body}
                   components={mdxComponents}
-                  options={{ mdxOptions: { remarkPlugins: [remarkGfm] } }}
+                  options={{
+                    mdxOptions: {
+                      remarkPlugins: [remarkGfm],
+                      // Shiki gives fenced code blocks VS Code quality colors
+                      // (light-plus is VS Code's default light theme).
+                      rehypePlugins: [[rehypeShiki, { theme: "light-plus" }]],
+                    },
+                  }}
                 />
               ) : (
                 <p className="text-[18px] leading-[1.78] text-muted">
