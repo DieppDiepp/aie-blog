@@ -1,0 +1,182 @@
+---
+title: "Object storage cho blog: MinIO vs Cloudflare R2, chọn cái nào"
+summary: "Chọn nơi lưu ảnh cho blog: object storage là gì, vì sao S3-compatible quan trọng, và so sánh tự host MinIO với Cloudflare R2 qua đường đi, bảo mật, chi phí và di cư."
+date: "2026-08-30"
+tags:
+  - label: "Hệ thống"
+    variant: "topic"
+  - label: "Object storage"
+    variant: "topic"
+  - label: "Trung bình"
+    variant: "mid"
+---
+
+Blog này để thân bài dạng file MDX trong repo, Git là nguồn sự thật. Text thì Git lo rất tốt: nó lưu theo dòng, so sánh được, gộp được. Ảnh thì ngược lại. Git lưu toàn bộ lịch sử của mọi file nhị phân, mà ảnh là nhị phân: sửa một lần là đẻ ra một khối dữ liệu mới nằm lại vĩnh viễn trong thư mục `.git`. Vài chục tấm là repo bắt đầu phình, `git clone` chậm, và mỗi lần CI build lại phải tải cả repo nên chậm theo.
+
+Nên ảnh cần ra ở một nơi khác, rồi bài viết chỉ trỏ tới bằng một đường link ổn định. Cái "nơi khác" đó tên là object storage. Câu hỏi của bài này: tự dựng một object storage của riêng mình (MinIO) hay mượn một dịch vụ có sẵn (Cloudflare R2). Cách tiếp cận vẫn như bài [Docker](/blog/hoc-docker-qua-du-an-web-that): gọi tên khái niệm và định nghĩa ngay tại chỗ trước khi đi tiếp.
+
+## 1. Object storage là gì
+
+Có ba cách lưu dữ liệu quen thuộc, ba hình dung khác nhau:
+
+- File system (ổ đĩa thường): dữ liệu xếp trong cây thư mục lồng nhau, truy cập bằng đường dẫn, sửa được từng khúc trong file. Hợp cho một máy đơn.
+- Database quan hệ (Postgres của dự án này): dữ liệu là các hàng có cấu trúc trong bảng, mạnh ở truy vấn và quan hệ. Không hợp để nhét file ảnh nặng vào.
+- Object storage: mỗi file là một "object", truy cập bằng một "key" qua HTTP.
+
+> Object storage: kho lưu file trong đó mỗi file là một object gồm dữ liệu thô cộng chút metadata (kiểu nội dung, thời gian). Mỗi object có một key (chuỗi tên định danh, trông như đường dẫn) nằm trong một bucket (cái thùng chứa). Không sửa nửa file, chỉ ghi đè cả object. Đổi lại nó rẻ, phình vô tư, và lấy về được bằng một URL từ mọi nơi.
+
+Ảnh blog hợp y hệt mô hình này: mỗi tấm là một object, ghi một lần đọc nhiều lần, lấy về bằng một URL. Đó là lý do cả thế giới để ảnh và file tĩnh trên object storage chứ không nhét vào database hay vào Git.
+
+## 2. S3 API và vì sao "S3-compatible" là từ khóa vàng
+
+Amazon S3 (Simple Storage Service) là dịch vụ object storage ra đời sớm và phổ biến tới mức "cách nói chuyện với nó" trở thành một chuẩn không chính thức của cả ngành.
+
+> S3 API: bộ lệnh HTTP chuẩn để thao tác object (tạo bucket, PUT một object lên, GET nó về, xóa, liệt kê). Vì Amazon S3 quá phổ biến, bộ lệnh này thành chuẩn thực tế mà các sản phẩm khác đua nhau nói theo.
+
+> S3-compatible: một sản phẩm không phải của Amazon nhưng nói đúng thứ tiếng S3 đó. Hệ quả rất thực tế: cùng một công cụ và cùng một đoạn code chạy được với cả hai, chỉ đổi địa chỉ endpoint và cặp khóa.
+
+Cả MinIO lẫn Cloudflare R2 đều S3-compatible. Các công cụ chuẩn đều nói được tiếng này: `aws-cli` (dòng lệnh của Amazon), `rclone` (như rsync cho cloud, để đồng bộ thư mục lên bucket), `mc` (dòng lệnh của MinIO), và `boto3` (thư viện Python để code upload trong app).
+
+Đây là điểm cốt lõi khi chọn: học S3 ở đâu cũng được, kỹ năng mang đi nguyên vẹn, và di cư giữa các nhà cung cấp chỉ là đổi cấu hình chứ không viết lại code. Chọn MinIO hay R2 vì thế không phải là cưới một đằng bỏ một đằng.
+
+## 3. Hai triết lý: tự host và managed
+
+Hai lựa chọn đại diện cho hai cách nghĩ về hạ tầng.
+
+> MinIO: một phần mềm object storage mã nguồn mở, một file binary gọn, mình tự chạy trên máy của mình (ở đây là VPS, trong Docker). Mình làm chủ hoàn toàn, dữ liệu nằm trên ổ của mình. Đổi lại mình gánh mọi việc vận hành: chạy nó, cấp ổ đĩa, sao lưu, vá lỗi, canh bảo mật.
+
+> Cloudflare R2: object storage nằm sẵn trong hạ tầng Cloudflare. Mình không chạy gì cả, chỉ tạo bucket và gọi API. Cloudflare lo phần cứng, độ bền, nhân bản, và nó nằm sát lớp edge/CDN nên phục vụ nhanh. Đổi lại dữ liệu nằm trên hạ tầng của họ.
+
+Phần còn lại của bài soi hai triết lý này qua các ống kính quen thuộc từ những bài trước: Docker, đường đi của một request, bảo mật, backup, chi phí, di cư.
+
+## 4. Qua ống kính Docker: mỗi bên thêm gì vào stack
+
+Nhắc lại từ bài [Docker](/blog/hoc-docker-qua-du-an-web-that): một service trong compose là một container; container không tự giữ dữ liệu bền nên trạng thái sống lâu phải gắn vào một volume; các service trong cùng compose nằm chung một mạng Docker riêng và gọi nhau bằng tên service.
+
+MinIO thêm hẳn một mảnh vào stack:
+
+- Một service mới, ví dụ `minio`, chạy image `minio/minio`, mở cổng nội bộ `9000` (API) và `9001` (console). Cổng này chỉ trong mạng Docker, không ra host, đúng nguyên tắc không mở cổng public.
+- Một volume mới, ví dụ `minio_data`, để ảnh sống qua các lần restart. Đây là volume stateful thứ hai của hệ thống, bên cạnh `db_data` của Postgres. Nhớ điều này, nó quay lại ở phần backup.
+- Một cặp khóa bí mật: root user và password của MinIO, phải đặt trong `.env.prod` trên VPS.
+
+R2 thì không thêm gì vào Docker cả. Không service, không volume, không biến trên VPS. R2 sống ngoài VPS hoàn toàn. Đây là khác biệt lớn nhất về vận hành: với MinIO, "ảnh" trở thành một phần của cái stack mình phải nuôi; với R2, ảnh là việc của Cloudflare.
+
+## 5. Đường đi của một tấm ảnh
+
+Đây là chỗ hai phương án tách nhau rõ nhất. Cả hai đều cho ảnh một địa chỉ đẹp là `media.aiengineerblog.com` và đều nằm sau edge Cloudflare, nhưng đường ảnh đi về sau edge thì khác hẳn.
+
+![Serving path for a blog image: with MinIO the reader hits the Cloudflare edge, then a cloudflared tunnel, then minio:9000 inside the VPS Docker network, which reads from the volume minio_data; with R2 the reader hits the Cloudflare edge and the R2 bucket directly, stopping at the edge with no VPS and no tunnel.](https://media.aiengineerblog.com/posts/object-storage-minio-vs-cloudflare-r2/serve-path.svg?v=1)
+
+MinIO đi qua tunnel, y hệt cách site chính đang chạy (xem bài [Cloudflare tunnel](/blog/cloudflare-tunnel-gan-domain-cho-vps)): thêm một public hostname trong dashboard tunnel trỏ `media.aiengineerblog.com` vào `http://minio:9000`. Cái tên `minio` ở đây là DNS nội bộ Docker, chỉ `cloudflared` (đứng chung mạng) hiểu được. Request của người đọc đi `người đọc -> Cloudflare edge -> tunnel -> minio:9000`, rồi MinIO trả ảnh ngược ra. Không cổng nào mở trên VPS.
+
+R2 dùng "custom domain" của chính R2, một cơ chế riêng, không qua tunnel.
+
+> Custom domain (R2): gắn một tên miền của mình thẳng vào bucket R2. Cloudflare tự tạo bản ghi DNS proxied trỏ tên đó vào bucket ở edge, và tự cấp chứng chỉ HTTPS cho nó.
+
+Với R2, request đi `người đọc -> Cloudflare edge -> R2`. VPS và tunnel không tham gia. Đây là lý do R2 vẫn phục vụ được ảnh kể cả khi VPS đang tắt.
+
+Điểm chung của cả hai đáng ghi nhớ:
+
+- Về DNS, người ngoài luôn chỉ thấy IP Cloudflare, không bao giờ thấy IP gốc của VPS.
+- Về TLS (ổ khóa HTTPS), cả hai đều terminate ở edge và không bắt máy chủ gốc giữ chứng chỉ. MinIO nói HTTP trần với `minio:9000` trong mạng Docker (an toàn vì không ra Internet), Cloudflare lo ổ khóa ở edge. R2 thì Cloudflare vừa là edge vừa là chủ bucket nên tự lo luôn.
+
+> Terminate TLS: nơi phiên mã hóa HTTPS công khai được giải mã. Trong kiến trúc Cloudflare, việc này xảy ra ở edge: trình duyệt bắt tay mã hóa với Cloudflare, Cloudflare giải mã rồi mới đẩy tiếp về sau bằng đường nội bộ.
+
+Khác biệt nằm ở chặng cuối: MinIO có thêm một chuyến "về VPS" qua tunnel, R2 thì dừng ngay ở edge. Và điều này ăn khớp với ống kính tiếp theo.
+
+## 6. Qua ống kính CDN: cache mới là thứ làm ảnh nhanh
+
+> CDN (Content Delivery Network): mạng máy chủ đặt gần người dùng, giữ sẵn bản sao của file tĩnh để trả ngay mà không phải chạy về tận origin (máy chủ gốc).
+
+Vì mọi thứ đi qua Cloudflare đều nằm sau edge, cả hai phương án đều được CDN. Nhưng cần tách hai chuyện hay bị gộp: "đi sau edge" khác "được cache". Edge tự động lo TLS và chống DDoS cho mọi thứ đi qua, còn cache thì có chọn lọc. Cloudflare mặc định chỉ cache file tĩnh (ảnh, css, js), không cache HTML động hay JSON từ API. Ảnh rơi đúng vào ô "tĩnh, nên cache", nên đây là ca lý tưởng.
+
+Cách kiểm chứng cache có ăn không là xem header `cf-cache-status`: `MISS` là lần đầu, edge phải về origin lấy; `HIT` là lần sau, edge trả từ bộ nhớ gần người dùng. Một tấm ảnh cache tốt thì từ lần thứ hai luôn HIT, và khi đó request thậm chí không chạm tới MinIO hay R2 nữa.
+
+Chính ở lần cache MISS mới thấy khác biệt của mục 5: R2 nằm sát edge nên Cloudflare lấy về rất gần, còn MinIO phải chạy ngược về VPS qua tunnel, xa hơn một chặng. Khi đã HIT thì hai bên như nhau.
+
+## 7. Qua ống kính bảo mật: khóa nằm ở đâu quyết định rủi ro
+
+Tách bạch hai việc hay bị gộp:
+
+- Đọc ảnh là công khai: ai cũng xem được, vì đó là nội dung blog. Không đặt auth cho việc đọc. Chống lạm dụng là việc của edge Cloudflare, tự động, cộng thêm cache làm đa số request không chạm origin.
+- Ghi và upload là riêng tư: chỉ tác giả, bảo vệ bằng một cặp khóa bí mật kiểu S3.
+
+> Access key và secret: cặp khóa kiểu S3 để xác thực quyền ghi. Access key id là danh tính công khai (như tên đăng nhập), còn secret là phần bí mật dùng để ký request. Ai giữ cặp khóa thì ghi được, nên đây là "auth" duy nhất cần canh.
+
+Khác biệt an ninh giữa hai phương án nằm ở chỗ đặt khóa:
+
+- MinIO: root credential và các access key sống trên VPS (trong `.env.prod` và trong chính MinIO). Nếu VPS bị chiếm, kẻ tấn công với tới luôn quyền ghi và xóa ảnh. Console MinIO cũng là một bề mặt nữa phải canh, tuyệt đối không hở ra Internet.
+- R2: có thể tạo một API token phạm vi hẹp (chỉ đọc-ghi đúng một bucket, không quyền admin), và token này chỉ cần nằm trên máy dev để upload, không cần đặt trên VPS, không nhét vào image web hay api. Site chỉ tham chiếu URL đọc công khai. Hệ quả đẹp: VPS bị chiếm cũng không kéo theo quyền ghi media, vì khóa ghi không ở đó.
+
+Với một người tự vận hành, ít bề mặt để canh là một lợi thế thật, không phải chi tiết nhỏ.
+
+## 8. Backup, chi phí, di cư
+
+Ba ống kính cuối gộp lại vì chúng cùng nói về "gánh nặng lâu dài".
+
+Backup và vận hành:
+
+- MinIO: dữ liệu nằm trên volume `minio_data` của VPS. Muốn an toàn phải tự backup volume đó, tự lo ổ đầy, tự vá lỗi, tự canh nó còn sống. Đây là volume stateful thứ hai phải lo, bên cạnh Postgres. Nhiều việc hơn, nhưng cũng là nơi học vận hành object storage thật sự.
+- R2: Cloudflare lo độ bền và nhân bản. Mình không backup ổ đĩa. Nếu vẫn muốn một bản sao cho yên tâm thì `rclone sync` R2 về máy theo lịch. Gần như không có việc vận hành thường ngày.
+
+Chi phí:
+
+- MinIO: phần mềm miễn phí, nhưng "chi phí" là tài nguyên VPS (RAM, CPU, ổ đĩa) và thời gian vận hành của mình.
+- R2: có bậc miễn phí rộng (khoảng 10 GB lưu trữ, hàng triệu thao tác mỗi tháng), và quan trọng nhất là băng thông đi ra (egress) miễn phí.
+
+> Egress: băng thông dữ liệu đi ra khỏi kho tới người dùng. Nhiều dịch vụ đối thủ tính tiền egress rất nặng khi ảnh được xem nhiều; R2 không tính, nên hóa đơn gần như luôn bằng 0 ở quy mô blog.
+
+Di cư: vì cả hai đều S3-compatible, chuyển nhà chỉ là một lệnh đồng bộ (`rclone sync` hoặc `mc mirror`). Nếu giữ nguyên custom domain `media.aiengineerblog.com` và chỉ đổi nơi nó trỏ tới, thì các URL trong bài viết không đổi, người đọc không thấy khác biệt. Nói cách khác: chọn R2 bây giờ không khóa mình khỏi MinIO sau này, và ngược lại. Đây là một quyết định rẻ để đảo.
+
+## 9. Bảng so sánh nhanh
+
+| Tiêu chí | MinIO (tự host trên VPS) | Cloudflare R2 (managed) |
+|---|---|---|
+| Bản chất | Server mình tự chạy trong Docker | Object storage ở hạ tầng Cloudflare |
+| API | S3-compatible | S3-compatible |
+| Thêm vào Docker | 1 service + 1 volume + khóa trên VPS | Không thêm gì |
+| Đường phục vụ | user -> edge -> tunnel -> minio | user -> edge -> R2 (không qua VPS) |
+| TLS | Cloudflare lo ở edge | Cloudflare lo ở edge |
+| CDN khi cache MISS | Phải về VPS qua tunnel | R2 sát edge |
+| Khóa ghi nằm ở | Trên VPS | Chỉ trên máy dev |
+| Backup | Tự backup volume | Cloudflare lo độ bền |
+| Chi phí | Free phần mềm, tốn tài nguyên và công | Free tier rộng, egress = 0 |
+| Vận hành | Cao | Thấp nhất |
+| Di cư | Dễ (S3) | Dễ (S3) |
+
+## 10. Chọn gì cho blog này
+
+Cho nhu cầu hiện tại (ảnh rất ít, một người vận hành, ưu tiên free và không over-engineer), R2 thắng rõ: free đủ dùng, egress bằng 0, không thêm container hay volume hay backup trên VPS, khóa ghi không nằm trên VPS nên an toàn hơn, mà vẫn học đúng S3 API chuẩn công nghiệp.
+
+MinIO không thua về kỹ thuật, nó chỉ dư so với nhu cầu lúc này. Nhưng nó là một bài học vận hành quý: tự dựng một object storage, tự lo volume, backup, bucket policy. Nên MinIO để dành làm một buổi riêng, dựng thử trong Docker như một chủ đề học, rồi `mc mirror` từ R2 sang cho thấy di cư dễ thế nào. Vì S3-compatible, học MinIO lúc đó không phí một chút kiến thức R2 nào.
+
+Quy tắc rút ra, dùng lại được cho nhiều quyết định hạ tầng sau này: chọn managed khi việc chính là làm ra sản phẩm và mình muốn ít bề mặt để canh; chọn tự host khi bản thân việc vận hành là thứ mình muốn học hoặc muốn làm chủ tuyệt đối. Ở đây mình chọn managed để chạy, và để dành tự host cho việc học, tách làm hai lần.
+
+## 11. Bảng thuật ngữ nhanh
+
+| Thuật ngữ | Nghĩa gọn |
+|---|---|
+| Object storage | Kho lưu file dạng object trong bucket, truy cập bằng key và HTTP |
+| Bucket | Cái thùng chứa object, đơn vị lớn nhất để phân quyền và đặt tên |
+| Object | Một file cộng chút metadata; đơn vị ghi và đọc, không sửa nửa chừng |
+| Key | Chuỗi tên định danh object trong bucket, trông như đường dẫn |
+| S3 API | Bộ lệnh HTTP chuẩn của Amazon S3, thành chuẩn của ngành |
+| S3-compatible | Sản phẩm nói được tiếng S3 nên dùng chung công cụ và code |
+| MinIO | Phần mềm object storage mã nguồn mở, tự host, S3-compatible |
+| Cloudflare R2 | Object storage managed của Cloudflare, S3-compatible, egress free |
+| Egress | Băng thông dữ liệu đi ra tới người dùng; nơi hay bị tính tiền |
+| CDN | Mạng máy chủ gần người dùng, giữ bản sao file tĩnh để trả nhanh |
+| cf-cache-status | Header cho biết edge trả từ cache (HIT) hay phải về origin (MISS) |
+| Custom domain (R2) | Gắn tên miền riêng thẳng vào bucket, phục vụ qua edge |
+| Access key / secret | Cặp khóa kiểu S3 để xác thực quyền ghi; giữ bí mật |
+
+## 12. Liên quan
+
+Bài này là một nhánh mới của mạch hạ tầng, xoay quanh câu hỏi "để dữ liệu tĩnh ở đâu". Nó tựa lên các bài trước:
+
+- [Docker cho người mới: đọc hiểu một dự án web thật](/blog/hoc-docker-qua-du-an-web-that): container, volume, mạng nội bộ và DNS của Docker.
+- [Domain, DNS, TLS cho người mới](/blog/domain-dns-tls-cho-nguoi-moi): DNS, TLS, và ai cấp chứng chỉ.
+- [Cloudflare tunnel gắn domain cho VPS](/blog/cloudflare-tunnel-gan-domain-cho-vps): tunnel đi ra, public hostname, edge lo TLS, reverse proxy.
+- [Deploy website lên VPS bằng GitHub Actions](/blog/deploy-website-len-vps-github-actions): stack chạy thật trên VPS.
+
+Bước thực hành tiếp theo (dựng bucket R2, gắn custom domain, tạo khóa và upload bằng rclone) là câu chuyện của một bài riêng.
