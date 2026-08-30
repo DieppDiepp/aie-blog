@@ -3,7 +3,7 @@ import Image from "next/image";
 import { SocialLinks } from "@/components/site/Social";
 
 export const metadata: Metadata = {
-  title: "About · AI Engineer Blog",
+  title: "About",
 };
 
 // Round portrait. Photo lives in /public and is cropped to a circle.

@@ -4,6 +4,7 @@ import "./globals.css";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { getAllPosts } from "@/lib/posts";
+import { SITE_URL, SITE_NAME } from "@/lib/site";
 
 // Editorial serif for headings (Vietnamese subset included), Geist for body
 // and UI, Geist Mono for labels and code. Exposed as CSS variables that
@@ -28,8 +29,26 @@ const mono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Engineer Blog",
-  description: "Portfolio và bài viết của một AI engineer.",
+  // metadataBase turns every relative URL below (and in child pages) into an
+  // absolute one on the canonical host, so OpenGraph/canonical links are valid.
+  metadataBase: new URL(SITE_URL),
+  // A title template: a child page returning `title: "Docker..."` renders as
+  // "Docker... · AI Engineer Blog"; the home page uses `default`.
+  title: {
+    default: SITE_NAME,
+    template: `%s · ${SITE_NAME}`,
+  },
+  description:
+    "Blog kỹ thuật của một AI engineer: bài viết đi từ dự án thật về hệ thống, hạ tầng, machine learning và deep learning.",
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "vi_VN",
+    url: SITE_URL,
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
 };
 
 export default async function RootLayout({

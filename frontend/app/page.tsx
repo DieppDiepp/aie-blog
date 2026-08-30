@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getAllPosts } from "@/lib/posts";
 import { FeaturedPost } from "@/components/post/PostCard";
 import { PostCarousel } from "@/components/post/PostCarousel";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 function ArrowRight() {
   return (

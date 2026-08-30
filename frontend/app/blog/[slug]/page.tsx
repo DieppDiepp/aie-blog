@@ -12,6 +12,7 @@ import { Suggested } from "@/components/post/Suggested";
 import { mdxComponents } from "@/components/mdx/mdx-components";
 import { formatLongDate, readingTimeMinutes } from "@/lib/format";
 import { extractToc } from "@/lib/toc";
+import { SITE_URL, SITE_NAME, SITE_AUTHOR } from "@/lib/site";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -26,7 +27,34 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
   const post = await getPostBySlug(slug);
-  return { title: post ? post.title : "Không tìm thấy bài viết" };
+  if (!post) return { title: "Không tìm thấy bài viết" };
+
+  const url = `${SITE_URL}/blog/${slug}`;
+  // Use the post's own cover image for social cards when it has one.
+  const images = post.thumbnail ? [post.thumbnail] : undefined;
+
+  return {
+    title: post.title,
+    description: post.summary,
+    // Canonical: tell Google this apex URL is the one true address for the
+    // page, even if it is reached via www or with tracking params.
+    alternates: { canonical: url },
+    openGraph: {
+      type: "article",
+      title: post.title,
+      description: post.summary,
+      url,
+      publishedTime: post.created_at,
+      authors: [SITE_AUTHOR],
+      images,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: post.summary,
+      images,
+    },
+  };
 }
 
 export default async function ArticlePage({ params }: Params) {
@@ -39,8 +67,27 @@ export default async function ArticlePage({ params }: Params) {
   const tags = post.tags ?? [];
   const toc = extractToc(post.body);
 
+  // Structured data (schema.org BlogPosting): a machine-readable summary of the
+  // article Google can use for richer search results. It restates fields the
+  // page already shows, in the vocabulary crawlers understand.
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.summary,
+    datePublished: post.created_at,
+    author: { "@type": "Person", name: SITE_AUTHOR },
+    publisher: { "@type": "Organization", name: SITE_NAME },
+    mainEntityOfPage: `${SITE_URL}/blog/${slug}`,
+    ...(post.thumbnail ? { image: post.thumbnail } : {}),
+  };
+
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-14 md:py-20">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* breadcrumb */}
       <div className="mb-10 flex items-center gap-2 font-mono text-[12.5px] text-muted">
         <Link href="/blog" className="hover:text-ink">

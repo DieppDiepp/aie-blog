@@ -3,7 +3,7 @@ import { getAllPosts } from "@/lib/posts";
 import { TopicGrid } from "@/components/topic/TopicGrid";
 
 export const metadata: Metadata = {
-  title: "Chủ đề · AI Engineer Blog",
+  title: "Chủ đề",
 };
 
 // Overview of every field, each linking to its own page.

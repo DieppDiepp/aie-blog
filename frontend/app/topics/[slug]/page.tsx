@@ -14,7 +14,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
   const topic = getTopic(slug);
-  return { title: topic ? `${topic.name} · AI Engineer Blog` : "Không tìm thấy chủ đề" };
+  return { title: topic ? `${topic.name}` : "Không tìm thấy chủ đề" };
 }
 
 export default async function TopicPage({ params }: Params) {

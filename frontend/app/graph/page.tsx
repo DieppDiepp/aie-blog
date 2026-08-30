@@ -4,7 +4,7 @@ import { buildGraph } from "@/lib/graph";
 import { KnowledgeGraph } from "@/components/graph/KnowledgeGraph";
 
 export const metadata: Metadata = {
-  title: "Graph · AI Engineer Blog",
+  title: "Graph",
 };
 
 // The knowledge graph: a live map of how the writing connects. Built from the
