@@ -100,13 +100,15 @@ export function PostCarousel({ posts }: { posts: Post[] }) {
     let startX = 0;
     let startScroll = 0;
 
+    // No pointer capture: capturing would retarget the click away from the
+    // card's <a>, so a plain tap would never navigate. Instead we track the
+    // drag on the window and only suppress the click after a real drag.
     const onDown = (e: PointerEvent) => {
       down = true;
       moved = false;
       paused.current = true;
       startX = e.pageX;
       startScroll = el.scrollLeft;
-      el.setPointerCapture(e.pointerId);
       el.classList.add("cursor-grabbing");
     };
     const onMove = (e: PointerEvent) => {
@@ -114,12 +116,10 @@ export function PostCarousel({ posts }: { posts: Post[] }) {
       if (Math.abs(e.pageX - startX) > 6) moved = true;
       el.scrollLeft = startScroll - (e.pageX - startX);
     };
-    const onUp = (e: PointerEvent) => {
+    const onUp = () => {
+      if (!down) return;
       down = false;
       paused.current = false;
-      try {
-        el.releasePointerCapture(e.pointerId);
-      } catch {}
       el.classList.remove("cursor-grabbing");
     };
     const onClick = (e: MouseEvent) => {
@@ -130,16 +130,16 @@ export function PostCarousel({ posts }: { posts: Post[] }) {
     };
 
     el.addEventListener("pointerdown", onDown);
-    el.addEventListener("pointermove", onMove);
-    el.addEventListener("pointerup", onUp);
-    el.addEventListener("pointercancel", onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
     el.addEventListener("click", onClick, true);
 
     return () => {
       el.removeEventListener("pointerdown", onDown);
-      el.removeEventListener("pointermove", onMove);
-      el.removeEventListener("pointerup", onUp);
-      el.removeEventListener("pointercancel", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
       el.removeEventListener("click", onClick, true);
     };
   }, []);
