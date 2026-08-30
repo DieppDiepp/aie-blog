@@ -42,6 +42,12 @@ export const TOPICS: Topic[] = [
     labels: ["LLM", "LLM & ứng dụng"],
     blurb: "Mô hình ngôn ngữ, RAG, agent và cách đưa ra sản phẩm thật.",
   },
+  {
+    slug: "other",
+    name: "Other",
+    labels: ["Other", "Khác"],
+    blurb: "Những ghi chép chưa xếp vào nhóm nào.",
+  },
 ];
 
 export function getTopic(slug: string): Topic | undefined {
