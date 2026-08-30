@@ -7,13 +7,13 @@ tags:
     variant: "topic"
   - label: "Trung bình"
     variant: "mid"
-# thumbnail: "/images/posts/cloudflare-dashboard-named-tunnel.jpg"
+# thumbnail: "/images/posts/cloudflare-named-tunnel.jpg"
 ---
 
 ## 0. Vấn đề
 
 Sau bài CI/CD, site chạy thật trên VPS nhưng ra Internet bằng một URL ngẫu nhiên đuôi
-`trycloudflare.com`, đổi mỗi lần cloudflared khởi động lại. Bài domain-dns-tls đã lo
+`trycloudflare.com`, đổi mỗi lần cloudflared khởi động lại. Bài domain-dns-tls-cho-nguoi-moi đã lo
 xong phần lý thuyết và phần mua tên: domain `aiengineerblog.com` mua qua Cloudflare
 Registrar nên đã nằm sẵn trong tài khoản, đã dùng nameserver Cloudflare, không phải
 đổi gì. Việc còn lại của bài này là phần thực hành trên dashboard: biến cái URL tạm
@@ -81,11 +81,11 @@ Vì sao Type là HTTP chứ không HTTPS, dù ngoài kia là HTTPS: cloudflared 
 toàn vì không ra Internet. TLS và ổ khóa được Cloudflare lo ở vòng ngoài, giữa trình
 duyệt và edge của Cloudflare. Nếu chọn HTTPS ở đây, cloudflared sẽ đòi `web:3000` phải
 có sẵn chứng chỉ, mà nó không có, nên sẽ lỗi. Đây đúng ý "reverse proxy/edge lo TLS"
-đã nói ở bài domain-dns-tls: máy chủ phía trong không tự lo chứng chỉ.
+đã nói ở bài domain-dns-tls-cho-nguoi-moi: máy chủ phía trong không tự lo chứng chỉ.
 
 Bấm Save. Cloudflare tự tạo một bản ghi DNS CNAME (proxied, biểu tượng đám mây cam)
 trỏ hostname vào `<tunnel-id>.cfargotunnel.com`. Mình không phải đụng tay vào DNS, nó
-tự làm, đúng như bài domain-dns-tls mô tả.
+tự làm, đúng như bài domain-dns-tls-cho-nguoi-moi mô tả.
 
 Về apex hay www: một lựa chọn gọn là lấy apex `aiengineerblog.com` làm địa chỉ chính
 (ngắn, đúng thương hiệu), rồi tùy ý thêm `www` như một public hostname thứ hai trỏ
@@ -266,11 +266,11 @@ Mẹo đọc nhanh tab Network: nhìn cột domain. Cùng tên miền của mìn
 
 ## 14. Liên quan
 
-Bài này là mắt xích thứ ba của mạch triển khai. Bài CI/CD (ci-cd-vps-ghcr) dựng hạ
-tầng chạy và cách ra Internet bằng URL tạm. Bài domain-dns-tls giải thích domain, DNS,
+Bài này là mắt xích thứ ba của mạch triển khai. Bài CI/CD (deploy-website-len-vps-github-actions) dựng hạ
+tầng chạy và cách ra Internet bằng URL tạm. Bài domain-dns-tls-cho-nguoi-moi giải thích domain, DNS,
 nameserver, TLS, và vì sao Cloudflare có sẵn HTTPS khi nó vừa quản DNS vừa làm edge.
 Bài này là phần thực hành đứng trên dashboard ghép hai thứ đó: đổi quick tunnel thành
 named tunnel gắn domain thật, cấu hình public hostname, nối token vào cloudflared, và
 kiểm chứng ổ khóa. Trong đồ thị tri thức sau này, ba bài nên nối với nhau qua chủ đề
-hạ tầng và triển khai, với bài này nằm giữa bài lý thuyết domain-dns-tls và bài hạ
-tầng ci-cd-vps-ghcr.
+hạ tầng và triển khai, với bài này nằm giữa bài lý thuyết domain-dns-tls-cho-nguoi-moi và bài hạ
+tầng deploy-website-len-vps-github-actions.
