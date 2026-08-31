@@ -15,7 +15,7 @@ lại thành cách làm với Cloudflare.
 
 ## 1. Domain là gì, mua ở đâu
 
-Máy tính trên Internet tìm nhau bằng địa chỉ số gọi là IP, ví dụ 45.128.222.24. Địa
+Máy tính trên Internet tìm nhau bằng địa chỉ số gọi là IP, ví dụ 203.0.113.24. Địa
 chỉ số khó nhớ, nên có domain: một cái tên dễ đọc đại diện cho địa chỉ đó.
 
 Domain không mua đứt mà thuê theo năm, từ một nơi gọi là nhà đăng ký (registrar). Vài

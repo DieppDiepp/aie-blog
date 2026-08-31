@@ -1,14 +1,17 @@
 import Link from "next/link";
 import type { Post } from "@/lib/types";
+import { Tag } from "@/components/ui/Tag";
 import { Thumbnail } from "./Thumbnail";
-import { formatYearMonth } from "@/lib/format";
+import { formatYearMonth, readingTimeMinutes } from "@/lib/format";
 
-// A short list of other posts to read next, shown in the article rail. Each
-// row carries a small thumbnail (placeholder until art is added).
+// Suggested reading in the article rail. Each entry is a small editorial card:
+// a wide cover on top, the title, and a compact meta line (topic, date, reading
+// time). Kept to a few cards so the rail stays light next to the table of
+// contents.
 export function Suggested({
   posts,
   currentSlug,
-  limit = 4,
+  limit = 3,
 }: {
   posts: Post[];
   currentSlug: string;
@@ -22,27 +25,42 @@ export function Suggested({
       <span className="block font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted">
         Suggested
       </span>
-      <ul className="mt-4 space-y-4">
-        {others.map((post) => (
-          <li key={post.slug}>
-            <Link href={`/blog/${post.slug}`} className="group flex gap-3">
-              <Thumbnail
-                src={post.thumbnail}
-                alt=""
-                rounded="rounded-[8px]"
-                className="h-[46px] w-[62px] shrink-0"
-              />
-              <span className="flex min-w-0 flex-col gap-1">
-                <span className="line-clamp-2 font-serif text-[14.5px] leading-snug text-ink-body transition-colors group-hover:text-accent">
-                  {post.title}
-                </span>
-                <span className="font-mono text-[11px] text-muted">
-                  {formatYearMonth(post.created_at)}
-                </span>
-              </span>
-            </Link>
-          </li>
-        ))}
+      <ul className="mt-4 space-y-3">
+        {others.map((post) => {
+          const minutes = readingTimeMinutes(post.body);
+          // Prefer the subject (topic) tag over a difficulty chip for context.
+          const topic = post.tags?.find((t) => t.variant === "topic") ?? post.tags?.[0];
+          return (
+            <li key={post.slug}>
+              <Link
+                href={`/blog/${post.slug}`}
+                className="group block overflow-hidden rounded-[13px] border border-hairline bg-surface transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--accent-line)] hover:shadow-[0_8px_22px_-14px_rgba(22,24,29,0.3)]"
+              >
+                <div className="aspect-[16/9] w-full border-b border-hairline">
+                  <Thumbnail
+                    src={post.thumbnail}
+                    alt={post.title}
+                    rounded="rounded-none"
+                    className="h-full w-full"
+                  />
+                </div>
+                <div className="flex flex-col gap-2.5 px-3.5 pb-3.5 pt-3">
+                  <h4 className="line-clamp-2 font-serif text-[15px] font-medium leading-[1.32] tracking-[-0.01em] text-ink transition-colors group-hover:text-accent">
+                    {post.title}
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    {topic && <Tag {...topic} />}
+                    <span className="ml-auto flex items-center gap-1.5 font-mono text-[11px] text-muted">
+                      <span>{formatYearMonth(post.created_at)}</span>
+                      <span className="inline-block h-2.5 w-px bg-hairline" />
+                      <span>{minutes} min</span>
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

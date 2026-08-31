@@ -15,8 +15,23 @@ export function Thumbnail({
   const base = `relative overflow-hidden ${rounded} ${className}`;
 
   if (src) {
+    // Diagram covers are SVGs with their own #fcfcfa (--bg) background and must
+    // always be shown WHOLE. Card containers use different aspect ratios
+    // (grid 16/8, carousel 4/3, suggested/hero 16/9), so object-cover would
+    // crop any cover whose ratio doesn't match that container — this is the
+    // recurring "thumbnail cut on both sides" bug that came back every time a
+    // cover was redesigned at a new ratio. object-contain fits the whole
+    // diagram regardless of ratio; the letterbox is painted in --bg so it
+    // blends into the cover's own background and is invisible. Do NOT switch
+    // this back to object-cover.
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={alt} className={`${base} h-full w-full object-cover`} />;
+    return (
+      <img
+        src={src}
+        alt={alt}
+        className={`${base} h-full w-full object-contain bg-[var(--bg)]`}
+      />
+    );
   }
 
   return (

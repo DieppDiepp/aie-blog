@@ -1,4 +1,5 @@
 import type { MDXComponents } from "mdx/types";
+import { Children, isValidElement } from "react";
 import Image from "next/image";
 import { slugify } from "@/lib/toc";
 
@@ -35,9 +36,25 @@ export const mdxComponents: MDXComponents = {
       {children}
     </h3>
   ),
-  p: (props) => (
-    <p className="mt-6 text-[18px] leading-[1.78] text-ink-body first:mt-0 md:text-[18.5px]" {...props} />
-  ),
+  // A standalone image renders as a block <figure> (see `img` below). Markdown
+  // wraps such an image in a paragraph, which would nest <figure> inside <p>
+  // (invalid HTML, hydration mismatch). When a paragraph's only child is an
+  // image, drop the <p> wrapper and let the figure stand on its own.
+  p: ({ children, ...props }) => {
+    const kids = Children.toArray(children);
+    if (
+      kids.length === 1 &&
+      isValidElement(kids[0]) &&
+      (kids[0].props as { src?: unknown }).src !== undefined
+    ) {
+      return <>{children}</>;
+    }
+    return (
+      <p className="mt-6 text-[18px] leading-[1.78] text-ink-body first:mt-0 md:text-[18.5px]" {...props}>
+        {children}
+      </p>
+    );
+  },
   ul: (props) => (
     <ul className="mt-6 list-disc space-y-2 pl-6 text-[18px] leading-[1.7] text-ink-body" {...props} />
   ),

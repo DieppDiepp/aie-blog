@@ -1,276 +1,129 @@
 ---
-title: "Cloudflare dashboard và named tunnel: cho website một địa chỉ cố định"
-summary: "Đứng trên dashboard Cloudflare đổi quick tunnel thành named tunnel gắn domain thật, để site có địa chỉ cố định và ổ khóa HTTPS mà vẫn không mở cổng nào."
+title: "Cloudflare Tunnel và reverse proxy: địa chỉ cố định mà không mở cổng"
+summary: "Hiểu cơ chế named tunnel và reverse proxy của Cloudflare: vì sao website có địa chỉ cố định và HTTPS mà máy chủ không mở cổng nào, token định danh, terminate TLS ở edge, và CORS."
 date: "2026-08-27"
 tags:
   - label: "Hệ thống"
     variant: "topic"
+  - label: "Cloudflare"
+    variant: "topic"
   - label: "Trung bình"
     variant: "mid"
-# thumbnail: "/images/posts/cloudflare-named-tunnel.jpg"
+thumbnail: "https://media.aiengineerblog.com/posts/cloudflare-tunnel-gan-domain-cho-vps/cover.svg?v=4"
 ---
 
-## 0. Vấn đề
+Bạn có một website chạy trên máy chủ của mình, ví dụ một VPS thuê ngoài. Làm sao để cả thế giới vào xem được? Cách cổ điển là mở một cổng trên máy chủ rồi trỏ tên miền vào địa chỉ IP của nó. Cách đó phơi máy chủ ra Internet: IP bị lộ, và mỗi cổng mở là một cánh cửa để người lạ dò.
 
-Sau bài CI/CD, site chạy thật trên VPS nhưng ra Internet bằng một URL ngẫu nhiên đuôi
-`trycloudflare.com`, đổi mỗi lần cloudflared khởi động lại. Bài domain-dns-tls-cho-nguoi-moi đã lo
-xong phần lý thuyết và phần mua tên: domain `aiengineerblog.com` mua qua Cloudflare
-Registrar nên đã nằm sẵn trong tài khoản, đã dùng nameserver Cloudflare, không phải
-đổi gì. Việc còn lại của bài này là phần thực hành trên dashboard: biến cái URL tạm
-thành địa chỉ cố định có tên và có ổ khóa, mà vẫn không mở cổng nào trên VPS.
+Cloudflare Tunnel làm theo hướng ngược lại. Máy chủ tự nối RA Cloudflare và giữ sẵn một đường ống; người xem đi VÀO qua Cloudflare rồi mới theo ống đó về máy chủ. Kết quả là máy chủ không mở cổng vào nào, IP thật không lộ, mà website vẫn có một địa chỉ cố định và ổ khóa HTTPS.
 
-## 1. Quick tunnel và named tunnel khác nhau ở đâu
+Bài này giải thích cơ chế đằng sau chuyện đó, không đi qua các bước bấm nút. Trang bạn đang đọc là một ví dụ chạy đúng theo mô hình này, nên thỉnh thoảng sẽ lấy tên miền của nó (`aiengineerblog.com`) ra minh họa. Hai khái niệm nền tảng cần nắm là named tunnel và reverse proxy.
 
-Cả hai đều là Cloudflare Tunnel: một tiến trình `cloudflared` chạy trên VPS, tự quay
-số RA NGOÀI tới Cloudflare và giữ sẵn một đường ống, để lưu lượng từ Internet đi ngược
-qua ống đó vào máy chủ. Nhờ đi ra chứ không mở cổng vào, VPS không phải hé cổng nào ra
-Internet. Khác nhau nằm ở chỗ có danh tính hay không:
+![Request and tunnel flow: a browser makes an HTTPS request to the Cloudflare edge, which terminates TLS and hides the origin IP; the edge forwards the request through the tunnel to the cloudflared process inside the VPS, which passes it to the web service over plain HTTP on a private Docker network. The tunnel was dialed outbound by cloudflared, so the VPS keeps every inbound port closed.](https://media.aiengineerblog.com/posts/cloudflare-tunnel-gan-domain-cho-vps/tunnel-flow.svg?v=2)
 
-- Quick tunnel: cloudflared bắt tay ẩn danh, Cloudflare quăng lại một URL rác
-  `*.trycloudflare.com`. Không tên, không lưu cấu hình ở đâu. Restart là mất URL. Hợp
-  thử nghiệm, lệnh chạy là `tunnel --url http://web:3000`.
-- Named tunnel: mình tạo trước một đường ống CÓ TÊN trên tài khoản Cloudflare. Nó có
-  một ID cố định và một token (giấy tờ tùy thân của đường ống). cloudflared cầm token
-  để chứng minh "tôi là đường ống này", rồi Cloudflare tra bảng cấu hình đã lưu sẵn:
-  ai gõ `aiengineerblog.com` thì đẩy vào ống này, ra `web:3000`.
+Sơ đồ trên là toàn cảnh sẽ được mổ xẻ dần: người đọc bắt tay HTTPS với lớp edge của Cloudflare, edge giải mã rồi đẩy tiếp qua đường ống vào một tiến trình tên `cloudflared` nằm trong máy chủ, và tiến trình đó chuyển vào service `web` chạy website. Đường ống được máy chủ chủ động quay ra, nên không đầu nào phải mở cổng chờ.
 
-Điểm mấu chốt để không bị rối: với named tunnel, cấu hình định tuyến nằm TRÊN
-Cloudflare chứ không nằm trong lệnh nữa. Lệnh cloudflared rút gọn còn `tunnel run` cộng
-token. Muốn đổi hostname trỏ đi đâu thì sửa trên dashboard, không đụng VPS.
+## 1. Named tunnel: đường ống có tên, có danh tính
 
-## 2. Zero Trust là cái tên khu, đừng sợ
+> Cloudflare Tunnel: một đường ống nối máy chủ ra hạ tầng Cloudflare bằng một kết nối đi RA. Một tiến trình tên `cloudflared` chạy trên máy chủ tự quay số ra Cloudflare và giữ sẵn đường ống, để lưu lượng từ Internet theo ống đó đi ngược vào máy chủ. Vì là kết nối đi ra chứ không phải mở cổng chờ, máy chủ không phải hé cổng nào.
 
-Tunnels nằm trong khu tên là Zero Trust trên dashboard Cloudflare (vào từ menu trái,
-hoặc thẳng one.dash.cloudflare.com). Nghe "Zero Trust" tưởng bảo mật cao siêu, nhưng ở
-đây chỉ là cái tên khu: Cloudflare gom nhiều công cụ mạng doanh nghiệp vào đó, mình chỉ
-mượn đúng phần Tunnels. Lần đầu vào nó bắt đặt một team name tùy ý và chọn plan, cứ
-chọn Free (0đ). Đường đi: Zero Trust > Networks > Tunnels.
+Có hai kiểu tunnel, khác nhau ở chỗ có danh tính hay không.
 
-## 3. Tạo named tunnel và lấy token
+Quick tunnel là loại ẩn danh, dùng để thử nhanh. `cloudflared` bắt tay mà không khai báo gì trước, Cloudflare ném lại một URL ngẫu nhiên đuôi `trycloudflare.com`. Không tên, không lưu cấu hình, nên khởi động lại là mất URL. Đây thường là thứ người mới gặp đầu tiên, và cũng là lý do có bài này: một địa chỉ đổi liên tục thì không dùng thật được.
 
-Create a tunnel > chọn loại connector Cloudflared (không phải WARP, vì mình có sẵn một
-tiến trình cloudflared chạy trong Docker) > đặt tên, ví dụ `aie-blog-prod` (tên chỉ để
-mình nhận ra, không ảnh hưởng URL) > Save.
+Named tunnel là loại có danh tính: mình tạo trước một đường ống có tên trên tài khoản Cloudflare. Nó có một ID cố định và một token. `cloudflared` cầm token để chứng minh "tôi là đường ống này", rồi Cloudflare tra bảng cấu hình đã lưu sẵn để biết ai gõ tên miền nào thì đẩy vào ống nào.
 
-Sau khi save, dashboard hiện trang hướng dẫn cài đặt với các tab Windows, macOS,
-Docker... và một câu lệnh mẫu dài. Điểm hay hiểu nhầm: KHÔNG chạy lệnh này, vì
-cloudflared đã chạy sẵn trong Docker trên VPS rồi. Mình chỉ lấy đúng cái token trong
-lệnh đó. Bấm tab Docker, lệnh mẫu dạng
-`docker run cloudflare/cloudflared:latest tunnel --no-autoupdate run --token eyJh...`;
-token là chuỗi rất dài sau `--token`, bắt đầu bằng `eyJ`, vài trăm ký tự. Copy nó.
+Điểm mấu chốt: với named tunnel, cấu hình định tuyến nằm trên Cloudflare chứ không nằm trong câu lệnh. Muốn đổi tên miền trỏ đi đâu thì sửa ở phía Cloudflare, không đụng máy chủ. Đó chính là thứ biến một URL tạm thành một địa chỉ cố định.
 
-Token này là bí mật: ai có nó là dựng được đường ống mạo danh site. Nó chỉ được nằm
-trong file `.env.prod` trên VPS, tuyệt đối không dán vào git. Bản thân token là một
-chuỗi base64 gói sẵn account tag, tunnel ID và một secret.
+## 2. Token: danh tính của đường ống
 
-## 4. Public hostname: apex hay www, và vì sao Type là HTTP
+Cái làm nên danh tính của named tunnel là token.
 
-Bước tiếp theo là khai báo public hostname, tức bảng "ai gõ tên nào thì đẩy đi đâu".
-Các ô và giá trị:
+> Token: một chuỗi bí mật gói sẵn thông tin định danh tài khoản, ID của tunnel và một khóa bí mật. `cloudflared` trình token ra để Cloudflare nhận đúng nó là đường ống nào. Ai có token là dựng được một đường ống mạo danh chính site đó, nên token phải giữ kín như một mật khẩu.
 
-- Subdomain: để trống thì được apex, tức `aiengineerblog.com` trần. Gõ `www` thì được
-  `www.aiengineerblog.com`. Dòng Full hostname bên dưới hiện tên cuối cùng để mình
-  kiểm lại.
-- Domain: chọn `aiengineerblog.com` từ dropdown (nó hiện ra vì domain đã nằm trong
-  tài khoản).
-- Path: để trống để phục vụ mọi đường dẫn. Ô này dùng regex, để trống là khớp tất.
-- Type: HTTP. URL: `web:3000`.
+Vì token là bí mật, câu hỏi kỹ thuật đáng quan tâm là: làm sao đưa nó vào tiến trình `cloudflared` mà không để lộ. Với một dự án chạy bằng Docker, cách thường dùng là truyền token qua biến môi trường, và giá trị thật đi qua ba nơi tách bạch. Sơ đồ dưới lấy đúng cấu trúc của trang này làm ví dụ:
 
-Vì sao Type là HTTP chứ không HTTPS, dù ngoài kia là HTTPS: cloudflared và container
-`web` nằm chung một mạng Docker riêng trong VPS, nói với nhau bằng HTTP trần cũng an
-toàn vì không ra Internet. TLS và ổ khóa được Cloudflare lo ở vòng ngoài, giữa trình
-duyệt và edge của Cloudflare. Nếu chọn HTTPS ở đây, cloudflared sẽ đòi `web:3000` phải
-có sẵn chứng chỉ, mà nó không có, nên sẽ lỗi. Đây đúng ý "reverse proxy/edge lo TLS"
-đã nói ở bài domain-dns-tls-cho-nguoi-moi: máy chủ phía trong không tự lo chứng chỉ.
+![How the tunnel token reaches cloudflared: the real value lives in a gitignored secret file on the server (.env.prod); the Docker compose file, tracked in Git, declares only the variable name; at startup Docker fills the value and sets it inside the cloudflared container, which reads it at runtime and dials out. It is passed as an environment variable, not on the command line.](https://media.aiengineerblog.com/posts/cloudflare-tunnel-gan-domain-cho-vps/token-wiring.svg?v=2)
 
-Bấm Save. Cloudflare tự tạo một bản ghi DNS CNAME (proxied, biểu tượng đám mây cam)
-trỏ hostname vào `<tunnel-id>.cfargotunnel.com`. Mình không phải đụng tay vào DNS, nó
-tự làm, đúng như bài domain-dns-tls-cho-nguoi-moi mô tả.
+Đọc từ trái sang: một file cấu hình bí mật nằm trên máy chủ (ở dự án này đặt tên `.env.prod`) giữ giá trị token thật và không bao giờ được đưa lên Git. File mô tả Docker (`compose.prod.yml`, có trong Git) chỉ khai TÊN của biến, không chứa giá trị. Khi khởi động, Docker ghép tên với giá trị lấy từ file bí mật rồi đặt biến đó vào bên trong container `cloudflared`; chính binary `cloudflared` mới là thứ đọc biến và quay số ra edge.
 
-Về apex hay www: một lựa chọn gọn là lấy apex `aiengineerblog.com` làm địa chỉ chính
-(ngắn, đúng thương hiệu), rồi tùy ý thêm `www` như một public hostname thứ hai trỏ
-cùng `web:3000` để ai gõ `www.` cũng không lỗi. Lưu ý wizard lúc tạo tunnel chỉ cho
-khai một hostname; muốn thêm `www` thì vào lại tunnel, tab Public Hostnames, Add a
-public hostname. Nếu không thêm, `www.aiengineerblog.com` sẽ không resolve (trình
-duyệt báo không tìm thấy máy chủ), còn apex vẫn chạy bình thường.
+Tách được ba vai này là hiểu bản chất: nơi khai tên (file mô tả, công khai trong Git), nơi giữ giá trị thật (file bí mật trên máy chủ), và nơi đọc rồi dùng (tiến trình lúc chạy). Lý do cố ý dùng biến môi trường thay vì gõ token thẳng vào dòng lệnh: token sẽ không lộ ra trong danh sách tiến trình đang chạy của máy.
 
-## 5. Ba tab dễ nhầm: Published applications, Hostname routes, CIDR routes
+## 3. TLS ở edge, HTTP bên trong
 
-Trang Route Traffic có ba tab, và với một blog public chỉ dùng đúng tab đầu:
+Một điểm dễ thắc mắc: đường ống trỏ tới service bằng HTTP trần (ví dụ `http://web:3000`), trong khi người đọc ngoài kia rõ ràng dùng HTTPS. Không mâu thuẫn, vì việc mã hóa xảy ra ở một chỗ khác.
 
-- Published applications (public hostname): cửa cho người ngoài Internet gõ tên miền
-  vào xem site. Đây là tab duy nhất blog cần điền.
-- Hostname routes: hostname nội bộ, chỉ máy nào cài Cloudflare One Client (WARP) mới
-  vào được. Dùng cho truy cập mạng riêng có kiểm soát, không phải web công khai.
-- CIDR routes: định tuyến cả một dải IP nội bộ (kiểu 10.0.0.0/8) qua WARP để chui vào
-  mạng riêng. Cũng không phải của blog.
+> Terminate TLS: nơi phiên mã hóa HTTPS công khai được giải mã. Với kiến trúc Cloudflare, việc này xảy ra ở edge: trình duyệt bắt tay mã hóa với Cloudflare, Cloudflare giải mã rồi mới đẩy tiếp về sau bằng đường nội bộ.
 
-Dấu hiệu nhận biết hai tab sau: cả hai đều có dòng cảnh báo "requires traffic to pass
-via Cloudflare Gateway... Cloudflare One Client", nghĩa là người dùng phải cài client
-mới vào được. Blog thì ngược lại, ai cũng gõ được từ trình duyệt bất kỳ, không bắt cài
-gì, nên là Published applications.
+`cloudflared` và service `web` nằm chung một mạng Docker riêng bên trong máy chủ, nói với nhau bằng HTTP trần vẫn an toàn vì đoạn đó không ra Internet. Ổ khóa được Cloudflare lo ở vòng ngoài, giữa trình duyệt và edge. Nếu bắt đoạn bên trong cũng phải HTTPS thì lại đòi service nội bộ tự có chứng chỉ, đúng thứ mà cả kiến trúc này muốn tránh: máy chủ phía sau không cần giữ chứng chỉ nào.
 
-## 6. Token chảy từ file vào cloudflared thế nào
+Hệ quả kiểm chứng được bằng con mắt: khi một địa chỉ trả về HTTP/2, đó là dấu hiệu đang có mã hóa, vì trình duyệt chỉ chạy HTTP/2 trên nền TLS. Và chứng chỉ cho tên miền do Cloudflare tự cấp, tự gia hạn, nên ổ khóa luôn còn hạn mà mình không phải làm gì.
 
-Token không nằm trong code repo. Nó đi qua ba chặng để tới được binary cloudflared:
+## 4. Public hostname và ba kiểu route
 
-1. `.env.prod` trên VPS chứa giá trị thật `TUNNEL_TOKEN=eyJ...`. File này git-ignored,
-   không bao giờ vào repo.
-2. Lệnh deploy chạy `docker compose --env-file .env.prod ...`. Cờ `--env-file` là cầu
-   nối: nó nạp các biến trong file đó để compose dùng.
-3. Trong `compose.prod.yml`, service cloudflared khai báo
-   `environment: { TUNNEL_TOKEN: ${TUNNEL_TOKEN} }`. Compose thay `${TUNNEL_TOKEN}`
-   bằng giá trị lấy từ env-file, rồi đặt biến `TUNNEL_TOKEN` vào bên trong container.
+Bảng cấu hình mà Cloudflare lưu sẵn thực chất trả lời câu hỏi "ai gõ tên nào thì đẩy đi đâu". Nhưng không phải kiểu route nào cũng dành cho web công khai, và đây là chỗ hay nhầm.
 
-Lệnh của service rút gọn còn `tunnel --no-autoupdate run`, KHÔNG kèm `--token`. Vì sao
-vẫn chạy được: binary cloudflared tự đọc biến môi trường `TUNNEL_TOKEN` khi không thấy
-cờ token. Cố ý truyền qua env thay vì gõ `--token <chuỗi>` trên dòng lệnh để token
-không lộ ra trong `docker ps` hay danh sách tiến trình.
+> Public hostname: một tên miền công khai (ví dụ `aiengineerblog.com` của trang này) được khai để trỏ vào một service nội bộ (ví dụ `web:3000`). Bất kỳ ai trên Internet gõ tên đó vào trình duyệt là xem được, không cần cài gì.
 
-Vậy có ba chỗ "định nghĩa" khác vai: mapping tên biến vào container nằm ở khối
-`environment` trong compose; giá trị thật nằm ở `.env.prod` trên VPS; việc đọc biến
-rồi quay số ra edge nằm trong chính binary cloudflared, không phải code mình viết.
+Cạnh public hostname còn hai kiểu route khác, nhưng cả hai đều đòi người dùng phải cài một phần mềm client riêng của Cloudflare mới đi vào được: một kiểu định tuyến theo từng máy nội bộ, một kiểu định tuyến cả một dải địa chỉ nội bộ. Chúng dành cho việc truy cập mạng riêng có kiểm soát trong doanh nghiệp, không phải cho một blog mà ai cũng phải mở được bằng trình duyệt bất kỳ. Dấu hiệu nhận ra: nếu một route đòi "phải đi qua client của Cloudflare" thì nó không phải cửa công khai. Một blog chỉ cần đúng public hostname.
 
-Cầm token, cloudflared quay số ra edge Cloudflare (cổng 443 và 7844, đi ra), trình
-token để chứng minh mình là tunnel `aie-blog-prod`. Cloudflare nhận ra, trả về bảng
-route đã lưu (hostname trỏ vào `web:3000`). Vì là kết nối đi ra, VPS không mở cổng vào
-nào, đúng tinh thần tunnel là cửa duy nhất mở từ trong ra.
+Còn một chi tiết nhỏ hay gặp: apex và www là hai địa chỉ khác nhau. Apex là tên trần (`aiengineerblog.com`), còn `www.aiengineerblog.com` là một tên con. Về mặt định tuyến, chúng là hai hostname riêng biệt, nên nếu chỉ khai một cái thì cái kia sẽ không mở được. Thường chọn apex làm địa chỉ chính vì nó ngắn gọn, còn `www` nếu muốn nhận thì khai thêm như một public hostname thứ hai trỏ về cùng service.
 
-## 7. Vì sao phải đổi FRONTEND_ORIGIN
+## 5. CORS: vì sao địa chỉ của trang phải khớp cấu hình
 
-Cùng lúc chuyển tunnel, có một biến nữa phải sửa trong `.env.prod`: `FRONTEND_ORIGIN`,
-đổi từ URL trycloudflare tạm sang `https://aiengineerblog.com`. Biến này là danh sách
-origin được phép trong luật CORS của backend. Trong code, chuỗi đi thế này: `.env.prod`
-nạp vào `Settings.frontend_origin` (backend/app/core/config.py), rồi vào CORS
-middleware (backend/app/main.py): `allow_origins=[settings.frontend_origin]`.
+Khi đổi từ URL tạm sang tên miền thật, có một khái niệm phía backend nên hiểu trước để sau này không dính một lỗi khó mò: CORS.
 
-CORS là luật an toàn của trình duyệt: khi JavaScript trên trang gọi sang API, trình
-duyệt gắn header Origin bằng địa chỉ trang, rồi bắt API xác nhận có cho phép origin đó
-không. API chỉ chấp nhận origin nằm trong danh sách. Nếu giá trị còn là URL cũ mà trang
-lại là domain mới thì không khớp, trình duyệt chặn phản hồi. Nên phải khớp đúng địa chỉ
-thật. Vài điểm nhớ: origin là scheme cộng host (`https://aiengineerblog.com`), không
-kèm path, không dấu gạch chéo cuối; `www` bị coi là origin khác apex. Hiện site còn
-tĩnh, trình duyệt chưa gọi API, nên đổi biến này chưa phải sống còn hôm nay, nhưng giữ
-đúng ngay để sau bật tính năng động không dính lỗi CORS khó mò.
+> CORS (Cross-Origin Resource Sharing): luật an toàn của trình duyệt. Khi JavaScript trên một trang gọi sang API, trình duyệt gắn thêm header ghi rõ origin của trang, rồi bắt API xác nhận có cho phép origin đó không. API chỉ trả kết quả nếu origin nằm trong danh sách cho phép.
 
-## 8. Thứ tự deploy an toàn: token lên VPS trước, push sau
+> Origin (danh tính trang): scheme cộng host, ví dụ `https://aiengineerblog.com`. Không kèm path, không dấu gạch chéo cuối, và `www` bị coi là một origin khác với apex.
 
-Trong dự án này, VPS lấy `compose.prod.yml` bản mới bằng cách CI copy file đó lên mỗi
-khi push nhánh main, còn `.env.prod` nằm sẵn trên VPS và không vào git. Điều đó quyết
-định thứ tự:
+Backend giữ một danh sách origin được phép gọi vào nó. Nếu danh sách còn ghi địa chỉ tạm cũ trong khi trang đã chuyển sang tên miền mới, hai origin không khớp, trình duyệt sẽ chặn phản hồi. Vì thế địa chỉ khai trong cấu hình phải khớp đúng tên miền thật. Lúc site còn thuần tĩnh, trình duyệt chưa gọi API nên lỗi này chưa xảy ra; nhưng khai đúng ngay từ đầu thì khi bật tính năng động sẽ không phải đi truy một lỗi mơ hồ.
 
-1. Trên VPS, sửa `.env.prod` trước: thêm `TUNNEL_TOKEN`, đổi `FRONTEND_ORIGIN`. Lúc
-   này compose cũ vẫn là quick tunnel, thêm biến thừa không ảnh hưởng gì.
-2. Rồi mới push compose mới. Pipeline copy compose lên VPS và chạy `up -d`, cloudflared
-   khởi động với lệnh named tunnel và tìm thấy `TUNNEL_TOKEN` đã có sẵn.
+## 6. Reverse proxy: Cloudflare đứng che máy chủ gốc
 
-Nếu làm ngược, push compose đòi token trước khi token có trong `.env.prod`, thì lần
-deploy đó cloudflared khởi động thiếu token, tunnel chết, site tắt. Một mẹo nhỏ khi
-đặt token vào file: đọc token vào một biến tạm bằng `read -s` cho khỏi hiện lên màn
-hình và khỏi lưu vào lịch sử lệnh, rồi `printf` xuống cuối file, xong `unset` biến đó.
+Tất cả những gì mô tả ở trên gộp lại thành một khái niệm có tên riêng, và nắm được tên này là có sẵn một khung để hiểu nhiều hệ thống web khác.
 
-## 9. Kiểm chứng: nhìn vào đâu để biết đã xong
+> Reverse proxy: một lớp trung gian đứng TRƯỚC máy chủ. Khách nối vào proxy, proxy mới chuyển tiếp vào máy chủ thật phía sau, nhờ đó máy chủ thật bị giấu khỏi người dùng. Ngược với forward proxy (VPN, proxy công ty) là lớp đứng phía client để giấu người dùng khỏi máy chủ.
 
-- `curl -I https://aiengineerblog.com` trả `HTTP/2 200`. Chi tiết HTTP/2 đáng chú ý:
-  trình duyệt chỉ chạy HTTP/2 trên TLS, nên thấy HTTP/2 là biết đang có mã hóa, tức
-  ổ khóa thật.
-- Xem chứng chỉ bằng `openssl s_client -connect aiengineerblog.com:443` rồi đọc issuer
-  và subject: subject là `aiengineerblog.com`, issuer là một CA được tin cậy (ở lần
-  làm này là Google Trust Services), hạn khoảng 90 ngày và Cloudflare tự gia hạn. Vì
-  do CA tin cậy ký nên trình duyệt bật ổ khóa, không cảnh báo.
-- Trên VPS, `docker compose logs cloudflared` có các dòng QUIC và HTTP/2 connectivity
-  PASS tới các region argotunnel, nghĩa là connector đã đăng ký đường ống với edge.
+Cụm edge Cloudflare cộng `cloudflared` chính là một reverse proxy đặt trước origin.
 
-## 10. Hai việc siết thêm sau khi site đã lên
+> Origin (máy chủ gốc): máy chủ thật nằm sau proxy, tức VPS. Lưu ý đây là một nghĩa khác của từ "origin" so với origin trong CORS ở mục trước (danh tính một trang). Cùng một từ, hai nghĩa tùy ngữ cảnh, rất hay gặp trong web.
 
-- Ép HTTP sang HTTPS: mặc định, gõ `http://aiengineerblog.com` có thể vẫn phục vụ qua
-  HTTP trần thay vì đẩy sang HTTPS. Bật ở dashboard CHÍNH (không phải Zero Trust): chọn
-  domain, vào SSL/TLS > Edge Certificates > bật Always Use HTTPS. Một công tắc, không
-  đụng VPS.
-- Thêm `www`: nếu muốn `www.aiengineerblog.com` cũng vào được, thêm nó như một public
-  hostname thứ hai (mục 4). Không thêm thì apex vẫn chạy, chỉ là gõ www sẽ báo không
-  tìm thấy máy chủ.
+Một reverse proxy thường gánh giúp máy chủ một loạt việc, và ở đây Cloudflare lo hết tại edge: kết thúc TLS (cấp và giải mã ổ khóa ngay tại edge, máy chủ gốc không cần chứng chỉ), định tuyến theo hostname (bảng public hostname quyết định tên nào vào service nào), giấu IP gốc (người ngoài chỉ thấy IP Cloudflare), chống lạm dụng và cache, cùng khả năng sửa hoặc chèn thêm vào phản hồi trên đường đi.
 
-Cả hai đều làm trên dashboard, không đụng repo hay VPS, nên có thể để lại làm sau khi
-site chính đã chạy.
+Hệ quả bảo mật đáng nhớ: vì chỉ có đúng một tuyến công khai (một hostname vào `web:3000`) và máy chủ không mở cổng nào, phần backend gần như vô hình với Internet. Ví dụ trang tài liệu API tự sinh (kiểu địa chỉ `/docs` của nhiều backend) chỉ tồn tại trong mạng nội bộ; gõ từ ngoài không tới. Muốn mở thêm gì ra ngoài phải chủ động khai một tuyến mới và tự gắn lớp bảo vệ cho nó. Mặc định là đóng, phải cố ý mới mở, đó là một mặc định tốt.
 
-## 11. Reverse proxy: Cloudflare đứng che máy chủ gốc
+## 7. Proxy được phép sửa phản hồi: đọc tab Network
 
-Toàn bộ cách làm ở trên có một tên gọi chung: reverse proxy. Proxy là bên trung gian
-đứng giữa, nhận request rồi chuyển tiếp. Có hai chiều ngược nhau:
+Khả năng "sửa hoặc chèn vào phản hồi" nghe trừu tượng, nhưng nhìn thấy được ngay trong tab Network của trình duyệt, nơi lộ ra hai nhóm request có tên miền khác nhau.
 
-- Forward proxy che phía client (VPN, proxy công ty): giấu người dùng khỏi máy chủ.
-- Reverse proxy che phía máy chủ: khách nối vào proxy, proxy mới chuyển vào máy chủ
-  thật, giấu máy chủ khỏi người dùng.
+Nhóm thứ nhất mang chính tên miền của trang, ví dụ các file tĩnh của ứng dụng (JavaScript, CSS). Chúng phát ra từ service `web`, đi qua proxy trả về nên vẫn mang tên miền của mình. Tên các file này thường có một chuỗi băm dài là cố ý: đổi nội dung là đổi tên, nhờ vậy trình duyệt cache rất lâu mà không sợ dùng nhầm bản cũ.
 
-Cụm Cloudflare edge cộng cloudflared chính là một reverse proxy đặt trước origin (máy
-chủ gốc, tức VPS). Lưu ý từ origin ở đây nghĩa là máy chủ gốc, khác với origin trong
-CORS ở mục 7 (danh tính một trang web); cùng một từ, hai nghĩa tùy ngữ cảnh, rất hay
-gặp trong web.
+Nhóm thứ hai mang một tên miền khác, ví dụ một script phân tích truy cập của Cloudflare. Điểm đáng chú ý: mẩu script này không nằm trong mã nguồn của trang; chính reverse proxy chèn thêm vào HTML ở edge khi trả cho trình duyệt. Đó là ví dụ sống của việc proxy sửa nội dung trên đường đi.
 
-Một reverse proxy thường gánh giúp những việc sau, ở đây Cloudflare lo hết ở edge:
-kết thúc TLS (ổ khóa cấp và giải mã tại edge, máy chủ gốc không cần chứng chỉ); định
-tuyến theo hostname và path (bảng public hostname quyết định tên nào vào service nào);
-giấu IP gốc (người ngoài chỉ thấy IP Cloudflare, không thấy IP VPS); chống DDoS, lọc
-request bậy, cache, nén; và sửa hoặc chèn thêm vào phản hồi trên đường đi (xem mục 12).
+Mẹo đọc nhanh tab Network vì thế là nhìn cột tên miền: cùng tên miền của trang là phần ứng dụng mình phát ra (qua proxy); tên miền lạ là phần bên thứ ba, ở đây do Cloudflare thêm vào tại edge.
 
-Hệ quả bảo mật đáng nhớ: vì chỉ có đúng một tuyến public (hostname vào web:3000) và
-máy chủ không mở cổng nào, backend FastAPI gần như vô hình với Internet. Trang tài liệu
-Swagger của FastAPI (api:8000/docs) chỉ tồn tại trong mạng nội bộ Docker, gõ từ ngoài
-không tới. Thử vào aiengineerblog.com/docs sẽ nhận 404, nhưng 404 đó do Next.js (web)
-trả vì nó không có route tên /docs, chứ request không hề chạm tới api. Muốn mở API ra
-ngoài sau này phải chủ động thêm một tuyến riêng (ví dụ api.tenban.com vào api:8000) và
-gắn lớp bảo vệ cho nó. Mặc định là đóng, phải cố ý mới mở, đó là điều tốt.
+## 8. Bảng thuật ngữ nhanh
 
-## 12. Đọc tab Network: đâu là của mình, đâu là của proxy
+| Thuật ngữ | Nghĩa gọn |
+|---|---|
+| Cloudflare Tunnel | Đường ống nối máy chủ ra edge bằng kết nối đi ra, không mở cổng vào |
+| cloudflared | Tiến trình chạy đường ống ở phía máy chủ |
+| Quick tunnel | Tunnel ẩn danh, URL ngẫu nhiên, đổi mỗi lần khởi động lại |
+| Named tunnel | Tunnel có tên và ID cố định, xác thực bằng token, hostname ổn định |
+| Token | Chuỗi bí mật để cloudflared chứng minh mình là tunnel nào |
+| Public hostname | Tên miền công khai trỏ vào một service nội bộ |
+| Terminate TLS | Nơi phiên HTTPS được giải mã; ở đây là edge Cloudflare |
+| Edge | Lớp máy chủ Cloudflare đứng trước site, nơi cấp và kết thúc TLS |
+| CORS | Luật trình duyệt kiểm soát trang nào được gọi API nào |
+| Origin (trang) | Scheme cộng host của một trang, ví dụ https://aiengineerblog.com |
+| Reverse proxy | Lớp trung gian đứng trước máy chủ, nhận kết nối thay rồi chuyển vào |
+| Forward proxy | Lớp trung gian phía client, giấu người dùng khỏi máy chủ |
+| Origin (máy chủ gốc) | Máy chủ thật sau proxy; khác nghĩa origin trong CORS |
 
-Mở tab Network của trình duyệt trên trang thật sẽ thấy hai nhóm request khác gốc:
+## 9. Liên quan
 
-Nhóm của chính app, cùng tên miền aiengineerblog.com, ví dụ các file
-`/_next/static/chunks/webpack-*.js` và `main-app-*.js`. Đây là các gói JavaScript của
-Next.js: trang không chỉ là HTML tĩnh mà kèm JS để tương tác. Tên file có chuỗi băm
-dài là cố ý, đổi nội dung thì đổi tên, nhờ vậy trình duyệt cache rất lâu (nhớ header
-cache-control s-maxage rất lớn ở mục 9) mà không sợ dùng nhầm bản cũ. Các file này phát
-ra từ web:3000, đi qua proxy trả về nên vẫn mang tên miền của mình.
+Bài này là mắt xích lý thuyết của mạch hạ tầng, giải thích cơ chế đưa một site ra Internet có tên và có ổ khóa mà không mở cổng. Nó nối với:
 
-Nhóm bên thứ ba, khác tên miền, ví dụ `static.cloudflareinsights.com/beacon.min.js`.
-Đây là Cloudflare Web Analytics, một mẩu script đếm lượt xem và tốc độ trang. Điểm
-đáng chú ý: mẩu này không nằm trong code repo; chính reverse proxy chèn thêm vào HTML ở
-edge khi trả cho trình duyệt. Đó là ví dụ sống của việc proxy được phép sửa nội dung
-trên đường đi. Nó nhẹ, không dùng cookie, không theo dõi xuyên site; không thích thì
-tắt trong dashboard ở mục Web Analytics.
-
-Mẹo đọc nhanh tab Network: nhìn cột domain. Cùng tên miền của mình là app mình phát ra
-(qua proxy); domain lạ là bên thứ ba, ở đây do Cloudflare thêm.
-
-## 13. Bảng thuật ngữ nhanh
-
-- Cloudflare Tunnel: đường ống nối máy chủ ra edge Cloudflare bằng kết nối đi ra, không
-  mở cổng vào.
-- cloudflared: tiến trình chạy đường ống ở phía máy chủ.
-- Quick tunnel: tunnel ẩn danh, URL ngẫu nhiên trycloudflare.com, đổi mỗi lần restart.
-- Named tunnel: tunnel có tên và ID cố định, xác thực bằng token, hostname ổn định.
-- Token (TUNNEL_TOKEN): chuỗi bí mật để cloudflared chứng minh mình là tunnel nào.
-- Zero Trust: khu công cụ mạng trên dashboard, nơi chứa mục Tunnels.
-- Public hostname: khai báo tên miền công khai trỏ vào một service nội bộ.
-- cfargotunnel.com: đích ẩn mà bản ghi CNAME của hostname trỏ vào, đại diện cho tunnel.
-- Edge: lớp máy chủ Cloudflare đứng trước site, nơi kết thúc TLS và cấp chứng chỉ.
-- CORS: luật trình duyệt kiểm soát trang nào được gọi API nào; điều khiển qua origin.
-- Origin: scheme cộng host của một trang, ví dụ https://aiengineerblog.com.
-- Always Use HTTPS: cài đặt Cloudflare tự đẩy mọi truy cập http sang https.
-- Reverse proxy: lớp trung gian đứng trước máy chủ, nhận kết nối thay rồi chuyển vào.
-- Forward proxy: lớp trung gian đứng phía client, giấu người dùng khỏi máy chủ.
-- Origin (máy chủ gốc): máy chủ thật phía sau proxy; khác nghĩa origin trong CORS.
-- Web Analytics beacon: script đếm lượt xem Cloudflare chèn vào trang ở edge.
-- Hydration: bước trình duyệt chạy JS để trang tĩnh của Next.js trở nên tương tác.
-
-## 14. Liên quan
-
-Bài này là mắt xích thứ ba của mạch triển khai. Bài CI/CD (deploy-website-len-vps-github-actions) dựng hạ
-tầng chạy và cách ra Internet bằng URL tạm. Bài domain-dns-tls-cho-nguoi-moi giải thích domain, DNS,
-nameserver, TLS, và vì sao Cloudflare có sẵn HTTPS khi nó vừa quản DNS vừa làm edge.
-Bài này là phần thực hành đứng trên dashboard ghép hai thứ đó: đổi quick tunnel thành
-named tunnel gắn domain thật, cấu hình public hostname, nối token vào cloudflared, và
-kiểm chứng ổ khóa. Trong đồ thị tri thức sau này, ba bài nên nối với nhau qua chủ đề
-hạ tầng và triển khai, với bài này nằm giữa bài lý thuyết domain-dns-tls-cho-nguoi-moi và bài hạ
-tầng deploy-website-len-vps-github-actions.
+- [Domain, DNS, TLS cho người mới](/blog/domain-dns-tls-cho-nguoi-moi): domain, DNS, nameserver và vì sao Cloudflare có sẵn HTTPS khi vừa quản DNS vừa làm edge.
+- [Deploy website lên VPS bằng GitHub Actions](/blog/deploy-website-len-vps-github-actions): stack chạy thật trên VPS mà tunnel đứng trước.
+- [Object storage cho blog: MinIO vs Cloudflare R2](/blog/object-storage-minio-vs-cloudflare-r2): cùng ý edge và reverse proxy, áp dụng cho việc phục vụ ảnh.
