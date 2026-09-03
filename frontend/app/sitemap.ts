@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/site";
 import { getAllPosts } from "@/lib/posts";
+import { AUTHORS } from "@/lib/authors";
 import { TOPICS } from "@/lib/topics";
 
 // Next reads this file to serve /sitemap.xml. It is the machine-readable list
@@ -10,13 +11,14 @@ import { TOPICS } from "@/lib/topics";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const posts = await getAllPosts();
 
-  // Static, hand-authored routes.
+  // Static, hand-authored routes. /about is intentionally omitted: it redirects
+  // to the default author page, and a redirect does not belong in the sitemap.
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${SITE_URL}/`, changeFrequency: "weekly", priority: 1 },
     { url: `${SITE_URL}/blog`, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${SITE_URL}/projects`, changeFrequency: "weekly", priority: 0.6 },
     { url: `${SITE_URL}/topics`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${SITE_URL}/graph`, changeFrequency: "monthly", priority: 0.4 },
-    { url: `${SITE_URL}/about`, changeFrequency: "yearly", priority: 0.3 },
   ];
 
   // One entry per published article. lastModified lets Google prioritise
@@ -35,5 +37,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.4,
   }));
 
-  return [...staticRoutes, ...postRoutes, ...topicRoutes];
+  // One entry per author page.
+  const authorRoutes: MetadataRoute.Sitemap = AUTHORS.map((author) => ({
+    url: `${SITE_URL}/authors/${author.slug}`,
+    changeFrequency: "monthly",
+    priority: 0.5,
+  }));
+
+  // NOTE: project DETAIL pages (/projects/<slug>) are not listed: they are not
+  // built yet (PROJECT_DETAIL_READY is false, rows link back to /projects).
+  // Add a projectRoutes block here in the same commit that ships that page.
+
+  return [...staticRoutes, ...postRoutes, ...topicRoutes, ...authorRoutes];
 }

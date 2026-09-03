@@ -54,7 +54,10 @@ export function Footer() {
 
       <div className="flex items-center justify-between pt-5">
         <span className="text-[11px] font-semibold uppercase leading-none tracking-[0.1em] text-[rgba(243,242,242,0.5)]">
-          © {year} AI Engineer Blog, Nguyên
+          © {year} AI Engineer Blog,{" "}
+          <Link href="/authors/nguyen" className="transition-colors hover:text-ink-invert">
+            Nguyên
+          </Link>
         </span>
         <a
           href="#top"

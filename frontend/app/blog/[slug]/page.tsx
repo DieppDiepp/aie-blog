@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import Link from "next/link";
+import Image from "next/image";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
 import rehypeShiki from "@shikijs/rehype";
@@ -13,6 +15,7 @@ import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { mdxComponents } from "@/components/mdx/mdx-components";
 import { formatLongDate, readingTimeMinutes } from "@/lib/format";
 import { extractToc } from "@/lib/toc";
+import { getAuthor, DEFAULT_AUTHOR } from "@/lib/authors";
 import { SITE_URL, SITE_NAME, SITE_AUTHOR } from "@/lib/site";
 
 type Params = { params: Promise<{ slug: string }> };
@@ -92,6 +95,10 @@ export default async function ArticlePage({ params }: Params) {
   const minutes = readingTimeMinutes(post.body);
   const tags = post.tags ?? [];
   const toc = extractToc(post.body);
+  // Post frontmatter has no author field yet, so every post resolves to the
+  // default author (see lib/authors.ts). The byline links to that author page.
+  const author = getAuthor(DEFAULT_AUTHOR);
+  const authorHref = `/authors/${author?.slug ?? DEFAULT_AUTHOR}`;
 
   // Structured data (schema.org BlogPosting): a machine-readable summary of the
   // article Google can use for richer search results. It restates fields the
@@ -102,7 +109,7 @@ export default async function ArticlePage({ params }: Params) {
     headline: post.title,
     description: post.summary,
     datePublished: post.created_at,
-    author: { "@type": "Person", name: SITE_AUTHOR },
+    author: { "@type": "Person", name: SITE_AUTHOR, url: `${SITE_URL}${authorHref}` },
     publisher: { "@type": "Organization", name: SITE_NAME },
     mainEntityOfPage: `${SITE_URL}/blog/${slug}`,
     ...(post.cover ? { image: post.cover } : {}),
@@ -130,9 +137,20 @@ export default async function ArticlePage({ params }: Params) {
           </p>
         )}
         <div className="mt-7 flex flex-wrap items-center border-t border-hairline pt-4">
-          <span className="pr-5 text-[11px] font-bold uppercase leading-none tracking-[0.12em] text-ink">
-            {SITE_AUTHOR}
-          </span>
+          <Link
+            href={authorHref}
+            className="group flex items-center gap-2 pr-5"
+            aria-label={`Trang tác giả ${author?.name ?? SITE_AUTHOR}`}
+          >
+            <span className="relative block h-[22px] w-[22px] shrink-0 overflow-hidden border border-hairline bg-ink">
+              {author?.avatar && (
+                <Image src={author.avatar} alt="" fill sizes="22px" className="object-cover" />
+              )}
+            </span>
+            <span className="text-[11px] font-bold uppercase leading-none tracking-[0.12em] text-ink transition-colors group-hover:text-accent-deep">
+              {author?.name ?? SITE_AUTHOR}
+            </span>
+          </Link>
           <span className="border-l border-hairline px-5 text-[11px] font-medium uppercase leading-none tracking-[0.12em] text-muted">
             {formatLongDate(post.created_at)}
           </span>

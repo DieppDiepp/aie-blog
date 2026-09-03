@@ -31,7 +31,7 @@ export default async function HomePage() {
           <h1 className="text-[64px] font-extrabold leading-[0.94] tracking-[-0.035em] text-ink">
             Xây hệ thống AI,
             <br />
-            và nghĩ thành tiếng.
+            và viết ra cách mình nghĩ.
           </h1>
           <p className="mt-5 max-w-[440px] font-serif text-[21px] font-light italic leading-[1.5] text-muted [text-wrap:pretty]">
             Bài viết, ghi chú và sơ đồ kiến trúc về cách mình xây dựng và vận hành
@@ -120,8 +120,8 @@ export default async function HomePage() {
           <Grain opacity={0.6} />
           <div className="relative grid items-end gap-12 md:grid-cols-[1.5fr_1fr]">
             <p className="max-w-[620px] text-[44px] font-extrabold leading-[1.02] tracking-[-0.035em] [text-wrap:balance]">
-              Nếu một bài giúp bạn đỡ mất thời gian hơn mình, vậy là nó đã làm xong
-              việc của nó.
+              Nếu một bài ở đây giúp bạn bớt loay hoay và đi nhanh hơn, vậy là nó
+              đã đáng công viết.
             </p>
             <div className="text-right">
               <Button href="/about" variant="invert">
