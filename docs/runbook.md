@@ -49,6 +49,19 @@ Cập nhật ngay khi thêm hoặc đổi bất kỳ script nào.
   cho nội dung bài nữa (xem ADR-0004); DB sẽ dùng lại khi làm bước đồng bộ
   metadata cho tìm kiếm và Knowledge Graph.
 
+### Thêm một dự án mới (theo ADR-0007)
+
+- Tạo thư mục `frontend/content/projects/<slug>/` với file `index.mdx` bên
+  trong. Không cần đổi code: `/projects` và `/authors/<slug>` đọc thẳng từ đây.
+- Frontmatter cần: `title`, `summary`, `date` (YYYY-MM-DD), `author` (slug
+  trong `lib/authors.ts`), `field` (slug trong `PROJECT_FIELDS` ở
+  `lib/project-types.ts`), `metrics` (đúng ba, tối đa một cái `accent: true`),
+  và tuỳ chọn `tags`, `chapters`, `artifacts`, `cover`, `thumbnail`,
+  `draft: true`.
+- Ảnh làm theo mục ảnh dự án trong `docs/skills/README.md`; chưa có thì bỏ
+  trống, UI hiện ô placeholder.
+- Xem thử ở `/projects` và trang tác giả của `author` đó.
+
 ### Thêm ảnh vào bài (media trên Cloudflare R2)
 
 Ảnh KHÔNG commit vào Git (xem ADR-0005). Ảnh nằm trên Cloudflare R2, đọc công

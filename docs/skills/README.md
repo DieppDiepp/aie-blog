@@ -79,6 +79,25 @@ Ví dụ: VPS có điều khác lạ cần script riêng, lỗi hay gặp và c�
 - Còn tồn: file thumbnail/cover khá nặng (logo nhúng base64, có file tới ~220KB),
   chưa tối ưu SVG. Có thể ép logo nhẹ hơn ở vòng sau nếu cần.
 
+### [2026-09-03] Quy ước ảnh cho dự án (section Projects)
+
+- Bối cảnh: section Projects (ADR-0007) dùng ảnh song song với bài viết, cùng
+  hệ Modernist v2 và cùng nguồn R2.
+- Quy ước:
+  - `cover` tỉ lệ 16/9, dùng cho dải dự án ở `/projects`. SVG sơ đồ hệ Modernist
+    trên nền `#f3f2f2`, hoặc ảnh thật (`.webp`) cho dự án có ảnh chụp/slide.
+  - `thumbnail` cho ô nhỏ 132x88 ở trang tác giả `/authors/<slug>`; nếu thiếu
+    thì `lib/projects.ts` fallback về `cover`, và ngược lại (một ảnh là đủ).
+  - Path trên R2: `projects/<slug>/cover.<ext>` (và `thumbnail.<ext>` nếu tách),
+    bust cache bằng `?v=N` như `content/posts`. Ảnh raster nén webp cho nhẹ
+    (dùng `sharp` trong `frontend/node_modules`, resize <=1600px q82).
+  - Đã làm 2026-09-03: `scholarship-routing` (slide 16/9) và
+    `physics-qa-program-of-thought` (sơ đồ) dùng `cover.webp` đúng path trên.
+  - Dự án chưa có ảnh thì bỏ trống `cover`/`thumbnail` trong frontmatter;
+    `Thumbnail` render ô placeholder đúng kích thước nên layout không xê dịch.
+    Đừng thay bằng ảnh stock hay service placeholder ngoài.
+  - Giữ nguyên chuẩn chung: nhãn tiếng Anh, không em dash, giữ màu ảnh.
+
 ### [2026-08-30] R2: mấy lỗi hay gặp khi upload ảnh bằng rclone
 
 - `rclone.conf` thiếu dòng `[r2]` -> "didn't find section". Thư mục

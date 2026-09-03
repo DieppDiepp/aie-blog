@@ -1,0 +1,64 @@
+---
+title: "Physics QA: nâng suy luận Program of Thought cho model nhỏ"
+summary: "Model 4B viết một khối Python chạy trong sandbox, LoRA hot swap sau một FastAPI gateway, 6 tới 9 giây mỗi truy vấn."
+date: "2026-06-01"
+author: "nguyen"
+field: "reasoning-slm"
+chapters: 8
+artifacts: "Có repo, có bài báo"
+cover: "https://media.aiengineerblog.com/projects/physics-qa-program-of-thought/cover.webp?v=1"
+tags:
+  - label: "Program of Thought"
+    variant: "topic"
+  - label: "vLLM, LoRA"
+    variant: "topic"
+  - label: "Sandbox execution"
+    variant: "topic"
+metrics:
+  - value: "2.846"
+    label: "Trajectory đã kiểm chứng"
+  - value: "6-9"
+    unit: "s"
+    label: "Mỗi truy vấn, ngân sách 60s"
+    accent: true
+  - value: "4B"
+    label: "Base model, LoRA hot swap"
+---
+
+## 1. Bối cảnh và vấn đề thực tế
+
+Ai viết phần này: chủ dự án. Đặt bài toán bằng ngôn ngữ người dùng trước khi
+nói tới model: ai đang cần gì, hiện họ làm thế nào, và chỗ nào đau.
+
+## 2. Những cách đã có
+
+So sánh với các hướng đang phổ biến: gọi API model lớn, suy luận thuần văn bản,
+và các bài liên quan. Bảng so sánh nên có cột tiêu chí, cột từng cách, và một
+câu kết luận vì sao chưa đủ.
+
+## 3. Giả thuyết
+
+Phát biểu giả thuyết ở dạng có thể kiểm chứng được: nếu buộc model sinh code
+rồi thực thi, lỗi số học và lỗi lũy thừa mười sẽ biến mất.
+
+## 4. Ràng buộc kỹ thuật
+
+Độ chính xác, thời gian mỗi truy vấn, hạ tầng tự host, và mức tin cậy cần đạt.
+Ghi rõ con số phải sống với, không ghi mong muốn.
+
+## 5. Kiến trúc hệ thống
+
+Sơ đồ đặt ở đây. Chưa có sơ đồ thì để chỗ trống, UI sẽ hiện ô placeholder.
+
+## 6. Quyết định thiết kế và lựa chọn đã bỏ
+
+Mỗi quyết định một đoạn: đã chọn gì, đã bỏ gì, và bỏ vì ràng buộc nào.
+
+## 7. Thực nghiệm và kết quả số
+
+Bảng kết quả. Ba số nổi bật nhất đã nằm ở frontmatter `metrics`, phần này là
+bảng đầy đủ và cách đo.
+
+## 8. Ảnh sản phẩm
+
+Ảnh demo, giao diện, hoặc ảnh buổi trình bày.
