@@ -19,7 +19,7 @@ function TopicCell({
   return (
     <Link
       href={`/topics/${topic.slug}`}
-      className="flex min-h-[230px] flex-col bg-bg px-8 py-[30px] transition-colors hover:bg-accent-tint-soft"
+      className="flex min-h-[230px] flex-col bg-bg px-8 py-[30px] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_7%,var(--bg))]"
     >
       <div className="flex items-baseline justify-between gap-4">
         <span className="text-[30px] font-extrabold leading-none tracking-[-0.03em] text-ink">

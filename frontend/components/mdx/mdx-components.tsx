@@ -134,7 +134,7 @@ export const mdxComponents: MDXComponents = {
     return (
       <CodeBlock lang={lang}>
         <pre
-          className={`overflow-x-auto font-mono text-[13.5px] leading-[1.75] !bg-transparent [&>code]:bg-transparent [&>code]:p-0 [&>code]:font-normal [&>code]:text-[13.5px] ${className ?? ""}`}
+          className={`overflow-x-auto font-mono text-[13.5px] leading-[1.75] text-[rgba(243,242,242,0.85)] !bg-transparent [&>code]:bg-transparent [&>code]:p-0 [&>code]:font-normal [&>code]:text-[13.5px] [&>code]:text-[rgba(243,242,242,0.85)] ${className ?? ""}`}
           style={{ ...style, background: "transparent" }}
           {...props}
         />
