@@ -2,7 +2,8 @@
 title: "Object storage cho blog: MinIO vs Cloudflare R2, chọn cái nào"
 summary: "Chọn nơi lưu ảnh cho blog: object storage là gì, vì sao S3-compatible quan trọng, và so sánh tự host MinIO với Cloudflare R2 qua đường đi, bảo mật, chi phí và di cư."
 date: "2026-08-30"
-thumbnail: "https://media.aiengineerblog.com/posts/object-storage-minio-vs-cloudflare-r2/cover.svg?v=2"
+thumbnail: "https://media.aiengineerblog.com/posts/object-storage-minio-vs-cloudflare-r2/thumbnail.svg?v=1"
+cover: "https://media.aiengineerblog.com/posts/object-storage-minio-vs-cloudflare-r2/cover.svg?v=3"
 tags:
   - label: "Hệ thống"
     variant: "topic"
@@ -17,7 +18,7 @@ Một trang blog có hai loại nội dung rất khác nhau: chữ và ảnh. Ch
 Lấy ngay trang bạn đang đọc làm ví dụ. Bấm chuột phải vào một tấm ảnh bất kỳ trong bài rồi chọn "sao chép địa chỉ ảnh", bạn sẽ được một đường link dạng:
 
 ```text
-https://media.aiengineerblog.com/posts/object-storage-minio-vs-cloudflare-r2/serve-path.svg?v=1
+https://media.aiengineerblog.com/posts/object-storage-minio-vs-cloudflare-r2/serve-path.svg?v=2
 ```
 
 Để ý ảnh không nằm cùng địa chỉ với bài viết, mà ở một tên miền riêng (phần `media.` ở đầu) chuyên để phục vụ file. Vì sao phải tách ra như vậy?
@@ -26,7 +27,7 @@ Lý do nằm ở cách lưu trữ. Nhiều blog, gồm cả trang này, giữ b�
 
 Nên ảnh cần ra ở một nơi khác, rồi bài viết chỉ trỏ tới bằng một đường link ổn định (chính là đường link `media.` ở trên). "Nơi khác" đó tên là object storage. Câu hỏi của bài: tự dựng object storage của riêng mình (MinIO) hay dùng một dịch vụ có sẵn (Cloudflare R2)?
 
-![High-level view: a blog's content splits in two. Article text lives in a Git repository where it is versioned. Images live in object storage and are served to readers by URL. This article is about the images half.](https://media.aiengineerblog.com/posts/object-storage-minio-vs-cloudflare-r2/overview.svg?v=1)
+![High-level view: a blog's content splits in two. Article text lives in a Git repository where it is versioned. Images live in object storage and are served to readers by URL. This article is about the images half.](https://media.aiengineerblog.com/posts/object-storage-minio-vs-cloudflare-r2/overview.svg?v=2)
 
 ## 1. Object storage là gì
 
@@ -78,7 +79,7 @@ R2 thì không thêm gì vào Docker cả. Không service, không volume, không
 
 Đây là chỗ hai phương án tách nhau rõ nhất. Cả hai đều cho ảnh cùng một địa chỉ công khai (ở trang này là `media.aiengineerblog.com`) và đều đứng sau lớp edge của Cloudflare (các máy chủ Cloudflare đặt gần người đọc, nhận request thay cho máy gốc), nhưng chặng đi tiếp sau edge thì khác hẳn.
 
-![Serving path for a blog image: with MinIO the reader hits the Cloudflare edge, then a cloudflared tunnel, then minio:9000 inside the VPS Docker network, which reads from the volume minio_data; with R2 the reader hits the Cloudflare edge and the R2 bucket directly, stopping at the edge with no VPS and no tunnel.](https://media.aiengineerblog.com/posts/object-storage-minio-vs-cloudflare-r2/serve-path.svg?v=1)
+![Serving path for a blog image: with MinIO the reader hits the Cloudflare edge, then a cloudflared tunnel, then minio:9000 inside the VPS Docker network, which reads from the volume minio_data; with R2 the reader hits the Cloudflare edge and the R2 bucket directly, stopping at the edge with no VPS and no tunnel.](https://media.aiengineerblog.com/posts/object-storage-minio-vs-cloudflare-r2/serve-path.svg?v=2)
 
 MinIO đi qua tunnel, y hệt cách site chính ra Internet (xem bài [Cloudflare tunnel](/blog/cloudflare-tunnel-gan-domain-cho-vps)): một public hostname trỏ `media.aiengineerblog.com` vào địa chỉ nội bộ `http://minio:9000`. Cái tên `minio` là DNS nội bộ Docker, chỉ `cloudflared` (đứng chung mạng) mới hiểu. Đường đi của người đọc là `người đọc -> Cloudflare edge -> tunnel -> minio:9000`, rồi ảnh trả ngược lại. Không cổng nào mở trên VPS.
 

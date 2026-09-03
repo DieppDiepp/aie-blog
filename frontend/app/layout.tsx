@@ -1,24 +1,26 @@
 import type { Metadata } from "next";
-import { Newsreader, Geist, Geist_Mono } from "next/font/google";
+import { Newsreader, Archivo, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { getAllPosts } from "@/lib/posts";
 import { SITE_URL, SITE_NAME } from "@/lib/site";
 
-// Editorial serif for headings (Vietnamese subset included), Geist for body
-// and UI, Geist Mono for labels and code. Exposed as CSS variables that
-// tokens.css / globals.css reference through the Tailwind theme.
+// Archivo carries display and UI (wordmark, headings, nav, labels); Newsreader
+// carries long-form reading and italic decks; Geist Mono stays for code.
+// Exposed as CSS variables that globals.css maps into the Tailwind theme.
 const serif = Newsreader({
   subsets: ["latin", "vietnamese"],
   style: ["normal", "italic"],
+  weight: ["300", "400", "500"],
   variable: "--font-newsreader",
   display: "swap",
 });
 
-const sans = Geist({
-  subsets: ["latin", "latin-ext"],
-  variable: "--font-geist",
+const sans = Archivo({
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-archivo",
   display: "swap",
 });
 
@@ -33,10 +35,10 @@ export const metadata: Metadata = {
   // absolute one on the canonical host, so OpenGraph/canonical links are valid.
   metadataBase: new URL(SITE_URL),
   // A title template: a child page returning `title: "Docker..."` renders as
-  // "Docker... · AI Engineer Blog"; the home page uses `default`.
+  // "Docker... | AI Engineer Blog"; the home page uses `default`.
   title: {
     default: SITE_NAME,
-    template: `%s · ${SITE_NAME}`,
+    template: `%s | ${SITE_NAME}`,
   },
   description:
     "Blog kỹ thuật của một AI engineer: bài viết đi từ dự án thật về hệ thống, hạ tầng, machine learning và deep learning.",

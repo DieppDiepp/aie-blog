@@ -1,30 +1,40 @@
 /* Design tokens. Every color is a CSS variable so a dark theme can be added
    later by defining a second set of values, without touching components.
-   See docs/decisions/0003-design-system.md for the rationale. */
+   See docs/decisions/0006-design-system-modernist.md for the rationale. */
 :root {
-  /* Surfaces and text (light "Paper" theme, the default) */
-  --bg: #fcfcfa;         /* warm paper background */
-  --surface: #ffffff;    /* cards and raised panels */
-  --ink: #16181d;        /* primary text, headings */
-  --ink-body: #25272e;   /* long-form body text, a touch softer than ink */
-  --muted: #6b6f76;      /* secondary text, meta */
-  --hairline: #e7e7e2;   /* thin borders and dividers */
+  /* Surfaces and text. Modernist ground: nothing floats, so --surface is the
+     same value as --bg. Panels are separated by rules, not by elevation. */
+  --bg: #f3f2f2;
+  --surface: #f3f2f2;
+  --ink: #201e1d;        /* primary text, headings, 2px rules */
+  --ink-body: #2b2927;   /* long-form body text, a touch softer than ink */
+  --ink-invert: #f3f2f2; /* text on ink fields (footer, poster, code) */
+  --muted: rgba(32, 30, 29, 0.62);
+  --hairline: rgba(32, 30, 29, 0.25); /* 1px row dividers */
+  --rule: #201e1d;                    /* 2px section rules */
 
-  /* Accent: Refined Blue, used sparingly for emphasis */
-  --accent: #2f5fe0;
-  --accent-hover: #1e40af;
-  --accent-wash: rgba(47, 95, 224, 0.05);  /* faint tinted panels */
-  --accent-line: rgba(47, 95, 224, 0.14);  /* tinted panel borders */
+  /* Accent. Single source of truth: every accent surface reads one of these
+     four, so changing --accent re-themes the whole site. */
+  --accent: #ec3013;
+  --accent-hover: color-mix(in srgb, var(--accent) 88%, #201e1d);
+  --accent-tint: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-tint-soft: color-mix(in srgb, var(--accent) 7%, transparent);
+  --accent-deep: color-mix(in srgb, var(--accent) 80%, #201e1d);
 
-  /* Difficulty tag tints (low saturation to stay calm) */
-  --tag-easy-bg: rgba(58, 122, 88, 0.12);
-  --tag-easy-fg: #2e6b4c;
-  --tag-mid-bg: rgba(166, 90, 46, 0.12);
-  --tag-mid-fg: #8a4a24;
-  --tag-hard-bg: rgba(180, 52, 52, 0.12);
-  --tag-hard-fg: #9a2f2f;
+  /* Difficulty tag tints. "easy" is neutral ink, "mid" is an accent tint, and
+     only "hard" gets a solid accent field, so a list of posts stays calm. */
+  --tag-easy-bg: rgba(32, 30, 29, 0.1);
+  --tag-easy-fg: #201e1d;
+  --tag-mid-bg: var(--accent-tint);
+  --tag-mid-fg: var(--accent-deep);
+  --tag-hard-bg: var(--accent);
+  --tag-hard-fg: #ffffff;
 
-  /* Shape. Single source of truth; globals.css maps this into Tailwind's
-     --radius-card theme slot so the rounded-card utility resolves to it. */
-  --card-radius: 16px;
+  /* Shape. Zero radius everywhere, on purpose: square corners are the whole
+     point of this system. globals.css maps this into --radius-card so the
+     rounded-card utility keeps compiling wherever it is still used. */
+  --card-radius: 0px;
+
+  /* Paper grain multiplier. Set to 0 to switch the grain overlays off. */
+  --grain: 1;
 }

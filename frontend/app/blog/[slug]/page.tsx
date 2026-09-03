@@ -1,20 +1,34 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
 import rehypeShiki from "@shikijs/rehype";
+import type { ShikiTransformer } from "shiki";
 import { getAllPosts, getPostBySlug } from "@/lib/posts";
 import { TagList } from "@/components/ui/Tag";
 import { Thumbnail } from "@/components/post/Thumbnail";
 import { Toc } from "@/components/post/Toc";
-import { Suggested } from "@/components/post/Suggested";
+import { Suggested, PrevNext } from "@/components/post/Suggested";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { mdxComponents } from "@/components/mdx/mdx-components";
 import { formatLongDate, readingTimeMinutes } from "@/lib/format";
 import { extractToc } from "@/lib/toc";
 import { SITE_URL, SITE_NAME, SITE_AUTHOR } from "@/lib/site";
 
 type Params = { params: Promise<{ slug: string }> };
+
+// Copy the fence language onto the <pre> as data-language so CodeBlock's header
+// can name it (bash, yaml) instead of a bare "code". @shikijs/rehype does not
+// emit that attribute on its own.
+const attachLanguage: ShikiTransformer = {
+  name: "attach-language",
+  pre(node) {
+    const lang = this.options.lang;
+    if (lang && lang !== "text" && lang !== "plaintext") {
+      node.properties = { ...node.properties, "data-language": lang };
+    }
+  },
+};
 
 // Prerender every published post at build time (see ADR-0004: a post ships
 // as a commit and a build, not an on-demand write). A slug outside this
@@ -31,7 +45,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
   const url = `${SITE_URL}/blog/${slug}`;
   // Use the post's own cover image for social cards when it has one.
-  const images = post.thumbnail ? [post.thumbnail] : undefined;
+  const images = post.cover ? [post.cover] : undefined;
 
   return {
     title: post.title,
@@ -57,12 +71,24 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   };
 }
 
+// The drop cap is applied here, on the prose wrapper, rather than in
+// mdx-components: only the article's FIRST paragraph gets one, and the MDX
+// component map has no way to know which paragraph it is rendering.
+const DROP_CAP =
+  "[&>p:first-of-type]:first-letter:float-left [&>p:first-of-type]:first-letter:mr-3.5 [&>p:first-of-type]:first-letter:mt-1.5 [&>p:first-of-type]:first-letter:font-serif [&>p:first-of-type]:first-letter:text-[78px] [&>p:first-of-type]:first-letter:leading-[0.74] [&>p:first-of-type]:first-letter:text-accent";
+
 export default async function ArticlePage({ params }: Params) {
   const { slug } = await params;
   const post = await getPostBySlug(slug);
   if (!post) notFound();
 
   const allPosts = await getAllPosts();
+  const index = allPosts.findIndex((p) => p.slug === slug);
+  // allPosts is newest first, so the "previous" post in reading order is the
+  // newer neighbour and "next" is the older one.
+  const prev = index > 0 ? allPosts[index - 1] : null;
+  const next = index >= 0 && index < allPosts.length - 1 ? allPosts[index + 1] : null;
+
   const minutes = readingTimeMinutes(post.body);
   const tags = post.tags ?? [];
   const toc = extractToc(post.body);
@@ -79,115 +105,107 @@ export default async function ArticlePage({ params }: Params) {
     author: { "@type": "Person", name: SITE_AUTHOR },
     publisher: { "@type": "Organization", name: SITE_NAME },
     mainEntityOfPage: `${SITE_URL}/blog/${slug}`,
-    ...(post.thumbnail ? { image: post.thumbnail } : {}),
+    ...(post.cover ? { image: post.cover } : {}),
   };
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-6 py-14 md:py-20">
+    <main>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      {/* breadcrumb */}
-      <div className="mb-10 flex items-center gap-2 font-mono text-[12.5px] text-muted">
-        <Link href="/blog" className="hover:text-ink">
-          Blog
-        </Link>
-        <span className="text-hairline">/</span>
-        <span className="truncate text-ink">{post.title}</span>
-      </div>
 
-      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_248px] lg:gap-14">
-        {/* main column */}
-        <div className="min-w-0">
-          <article className="max-w-2xl">
-            <h1 className="text-balance font-serif text-[36px] font-medium leading-[1.06] tracking-[-0.022em] text-ink md:text-[48px]">
-              {post.title}
-            </h1>
+      <Breadcrumb trail={[{ href: "/blog", label: "Blog" }]} current={post.title} />
 
-            {post.summary && (
-              <p className="mt-6 font-serif text-[20px] italic leading-[1.55] text-muted md:text-[21px]">
-                {post.summary}
-              </p>
-            )}
-
-            {/* byline */}
-            <div className="mt-8 flex flex-col gap-4 border-b border-hairline pb-8">
-              <div className="flex items-center gap-4 text-[14px] text-muted">
-                <span className="font-medium text-ink">Nguyên</span>
-                <span className="inline-block h-3 w-px bg-hairline" />
-                <span className="font-mono text-[13px]">{formatLongDate(post.created_at)}</span>
-                <span className="inline-block h-3 w-px bg-hairline" />
-                <span className="font-mono text-[13px]">{minutes} min read</span>
-              </div>
-              <TagList tags={tags} />
-            </div>
-
-            {/* lead thumbnail (placeholder until a real image is set) */}
-            <Thumbnail
-              src={post.thumbnail}
-              alt={post.title}
-              className="mt-8 aspect-[16/9] w-full"
-            />
-
-            {/* compact TOC for narrow screens, where the rail is hidden */}
-            {toc.length >= 2 && (
-              <div className="mt-8 rounded-card border border-hairline p-5 lg:hidden">
-                <Toc items={toc} />
-              </div>
-            )}
-
-            {/* body, rendered from the post's MDX source */}
-            <div className="mt-8">
-              {post.body ? (
-                <MDXRemote
-                  source={post.body}
-                  components={mdxComponents}
-                  options={{
-                    mdxOptions: {
-                      remarkPlugins: [remarkGfm],
-                      // Shiki gives fenced code blocks VS Code quality colors
-                      // (light-plus is VS Code's default light theme).
-                      rehypePlugins: [[rehypeShiki, { theme: "light-plus" }]],
-                    },
-                  }}
-                />
-              ) : (
-                <p className="text-[18px] leading-[1.78] text-muted">
-                  Bài viết này chưa có nội dung.
-                </p>
-              )}
-            </div>
-          </article>
-
-          {/* footer */}
-          <div className="mt-16 max-w-2xl border-t border-hairline pt-8">
-            <Link
-              href="/blog"
-              className="inline-flex items-center gap-2 text-[14px] font-medium text-accent hover:text-accent-hover"
-            >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <path
-                  d="M13 8H4M7.5 4l-4 4 4 4"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              Back to Blog
-            </Link>
-          </div>
+      {/* Title block. The chips sit above the h1 because they are a
+          classification control, not a text eyebrow. */}
+      <header className="border-b-2 border-rule px-14 pb-[34px] pt-[52px]">
+        <TagList tags={tags} className="mb-5" />
+        <h1 className="max-w-[900px] text-[62px] font-extrabold leading-[0.96] tracking-[-0.04em] text-ink [text-wrap:balance]">
+          {post.title}
+        </h1>
+        {post.summary && (
+          <p className="mt-5 max-w-[660px] font-serif text-[22px] font-light italic leading-[1.5] text-muted">
+            {post.summary}
+          </p>
+        )}
+        <div className="mt-7 flex flex-wrap items-center border-t border-hairline pt-4">
+          <span className="pr-5 text-[11px] font-bold uppercase leading-none tracking-[0.12em] text-ink">
+            {SITE_AUTHOR}
+          </span>
+          <span className="border-l border-hairline px-5 text-[11px] font-medium uppercase leading-none tracking-[0.12em] text-muted">
+            {formatLongDate(post.created_at)}
+          </span>
+          <span className="border-l border-hairline px-5 text-[11px] font-medium uppercase leading-none tracking-[0.12em] text-muted">
+            {minutes} phút đọc
+          </span>
+          {index >= 0 && (
+            <span className="border-l border-hairline px-5 text-[11px] font-bold uppercase leading-none tracking-[0.12em] text-accent-deep">
+              Bài {String(allPosts.length - index).padStart(2, "0")} / {String(allPosts.length).padStart(2, "0")}
+            </span>
+          )}
         </div>
+      </header>
 
-        {/* rail: sticky table of contents + suggested reading (desktop only) */}
-        <aside className="hidden lg:block">
-          <div className="sticky top-24 space-y-10">
+      {/* Full-bleed cover, with the summary repeated as a caption strip. */}
+      {post.cover && (
+        <>
+          <div className="h-[500px] border-b-2 border-rule bg-ink">
+            <Thumbnail src={post.cover} alt={post.title} fit="cover" priority />
+          </div>
+          {post.summary && (
+            <p className="border-b-2 border-rule px-14 py-2.5 font-serif text-[12px] font-medium italic leading-relaxed text-muted">
+              {post.summary}
+            </p>
+          )}
+        </>
+      )}
+
+      <div className="grid lg:grid-cols-[320px_1fr]">
+        {/* Rail: sticky table of contents and read-next (desktop only). */}
+        <aside className="hidden border-r border-hairline py-9 pl-14 pr-8 lg:block">
+          <div className="sticky top-[136px] flex flex-col gap-6">
             <Toc items={toc} scrollable />
             <Suggested posts={allPosts} currentSlug={slug} />
           </div>
         </aside>
+
+        <article className="max-w-[920px] px-14 pb-14 pt-10 lg:pl-12">
+          {/* Compact TOC for narrow screens, where the rail is hidden. */}
+          {toc.length >= 2 && (
+            <div className="mb-8 border-2 border-rule p-5 lg:hidden">
+              <Toc items={toc} />
+            </div>
+          )}
+
+          {post.body ? (
+            <div className={DROP_CAP}>
+              <MDXRemote
+                source={post.body}
+                components={mdxComponents}
+                options={{
+                  mdxOptions: {
+                    remarkPlugins: [remarkGfm],
+                    // A dark Shiki theme, because fenced blocks render on the
+                    // ink field supplied by CodeBlock. The transformer copies the
+                    // fence language onto the <pre> as data-language so CodeBlock's
+                    // header can name it (bash, yaml) instead of a bare "code".
+                    rehypePlugins: [
+                      [rehypeShiki, { theme: "github-dark", transformers: [attachLanguage] }],
+                    ],
+                  },
+                }}
+              />
+            </div>
+          ) : (
+            <p className="font-serif text-[19px] leading-[1.72] text-muted">
+              Bài viết này chưa có nội dung.
+            </p>
+          )}
+        </article>
       </div>
+
+      <PrevNext prev={prev} next={next} />
     </main>
   );
 }

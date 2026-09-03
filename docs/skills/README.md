@@ -42,15 +42,42 @@ Ví dụ: VPS có điều khác lạ cần script riêng, lỗi hay gặp và c�
   - Sơ đồ vẽ tay bằng SVG theo design system: nền Paper, accent #2F5FE0, thẻ trắng
     bo góc, mũi tên đặc = gọi trong mạng, đứt = port/host, hình trụ = volume. Sơ đồ
     codebase thêm icon file kiểu VS Code explorer.
-  - Thumbnail: card trang chủ dùng `aspect-[4/3]` + `object-cover`, nên làm ảnh
-    cover RIÊNG tỉ lệ 4:3 (`cover.svg`), đừng lấy sơ đồ rộng làm thumbnail (bị cắt).
+  - Ảnh mỗi bài giờ tách hai vai (từ 2026-09-03, xem mục riêng bên dưới):
+    `thumbnail.svg` chỉ gồm logo techstack, cho ô thẻ nhỏ 150x88; `cover.svg` tỉ lệ
+    16/9 trên nền `#f3f2f2`, cho các dải full-bleed (masthead Home, đầu bài, lead
+    trang blog). Frontmatter khai báo cả `thumbnail` và `cover`; nếu thiếu `cover`
+    thì `lib/posts.ts` tự fallback về `thumbnail`. Vì cover đã chuẩn 16/9,
+    `COVERS_FIXED_RATIO = true` trong `lib/site.ts` nên dải lớn chạy `object-cover`
+    lấp đầy khung; thẻ nhỏ vẫn `object-contain` (mặc định của `Thumbnail`).
   - Ảnh nằm trên R2 (`media.aiengineerblog.com`), chèn bằng `next/image`
     (`unoptimized` cho SVG) + `remotePatterns` cho host đó (đã cấu hình trong
     `next.config.ts` và `components/mdx/mdx-components.tsx`).
-  - Code block tô màu bằng Shiki theme `light-plus` (màu VS Code), gắn ở
-    `rehypePlugins` trong `app/blog/[slug]/page.tsx`.
+  - Code block tô màu bằng Shiki theme `github-dark`, gắn ở `rehypePlugins` trong
+    `app/blog/[slug]/page.tsx`. Từ ADR-0006, fenced block nằm trên nền ink của
+    `CodeBlock`, nên theme phải là theme tối (đổi từ `light-plus` cũ). Một
+    transformer nhỏ gắn `data-language` lên `<pre>` để header in đúng tên ngôn ngữ.
 - Lý do: ảnh không dịch được nên tách chữ ra text; `next/image` bỏ cảnh báo LCP của
-  `<img>`; Shiki cho màu chuẩn VS Code.
+  `<img>`; Shiki `github-dark` khớp nền ink của khung code trong hệ Modernist.
+
+### [2026-09-03] Vẽ lại toàn bộ hình theo Modernist v2, tách thumbnail và cover
+
+- Bối cảnh: web đã đổi sang giao diện Modernist (ADR-0006) nhưng hình vẫn theo hệ
+  cũ (nền `#FCFCFA`, bo góc `rx=16`, accent xanh `#2F5FE0`). Đóng gói ảnh hiện tại
+  và logo cho Claude Design vẽ lại, rồi lấy output về.
+- Đã làm: 5 bài, mỗi bài có `thumbnail.svg` (chỉ logo techstack, đọc được ở ô thẻ
+  150x88) và `cover.svg` (16/9, nền `#f3f2f2`, dải full-bleed), cộng các sơ đồ thân
+  bài vẽ lại giữ nguyên tên. Tất cả nền `#f3f2f2`, bo góc 0, kẻ 2px, logo nhúng
+  base64, nhãn tiếng Anh, không em dash.
+- Frontend: thêm field `cover` vào `lib/types.ts` và `lib/posts.ts` (fallback về
+  `thumbnail` khi thiếu); thẻ nhỏ dùng `thumbnail`, dải lớn và ảnh OG/JSON-LD dùng
+  `cover`; bật `COVERS_FIXED_RATIO = true`.
+- Cảnh báo key R2: bài Docker có slug `hoc-docker-qua-du-an-web-that` nhưng key R2
+  là `posts/docker-co-ban-cho-python-dev/`. Bốn bài kia key trùng slug.
+- Upload: `rclone copyto <file> r2:aie-blog-media/posts/<key>/<file> --header-upload
+  "Content-Type: image/svg+xml" --s3-no-check-bucket`, rồi tăng `?v=N` trong
+  frontmatter và thân bài để phá cache edge (query là một phần cache key).
+- Còn tồn: file thumbnail/cover khá nặng (logo nhúng base64, có file tới ~220KB),
+  chưa tối ưu SVG. Có thể ép logo nhẹ hơn ở vòng sau nếu cần.
 
 ### [2026-08-30] R2: mấy lỗi hay gặp khi upload ảnh bằng rclone
 

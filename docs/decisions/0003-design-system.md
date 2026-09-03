@@ -1,6 +1,6 @@
 # ADR-0003: Design System v1 (Editorial Calm)
 
-Trạng thái: Accepted. Ngày: 2026-08-25.
+Trạng thái: Superseded by ADR-0006. Ngày: 2026-08-25.
 
 ## Bối cảnh
 

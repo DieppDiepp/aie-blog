@@ -2,7 +2,8 @@
 title: "Docker cho người mới: đọc hiểu một dự án web thật"
 summary: "Học Docker từ một dự án web thật: đọc docker-compose và Dockerfile, hiểu image, container, volume và mạng nội bộ qua stack FastAPI, Next.js, PostgreSQL."
 date: "2026-08-24"
-thumbnail: "https://media.aiengineerblog.com/posts/docker-co-ban-cho-python-dev/cover.svg?v=9"
+thumbnail: "https://media.aiengineerblog.com/posts/docker-co-ban-cho-python-dev/thumbnail.svg?v=1"
+cover: "https://media.aiengineerblog.com/posts/docker-co-ban-cho-python-dev/cover.svg?v=10"
 tags:
   - label: "Docker"
     variant: "topic"
@@ -50,7 +51,7 @@ Ba phần việc đó là:
 - api: phần xử lý logic và trả dữ liệu, viết bằng FastAPI (Python). Nằm trong thư mục `backend/`.
 - db: phần lưu dữ liệu, dùng PostgreSQL. Nó KHÔNG có thư mục riêng, vì ta dùng thẳng một image có sẵn thay vì tự viết.
 
-![Techstack của dự án: Next.js cho frontend (service web), FastAPI cho backend (service api), PostgreSQL cho database (service db), cả ba đóng gói và chạy bằng Docker.](https://media.aiengineerblog.com/posts/docker-co-ban-cho-python-dev/tech-stack.svg?v=5)
+![Techstack của dự án: Next.js cho frontend (service web), FastAPI cho backend (service api), PostgreSQL cho database (service db), cả ba đóng gói và chạy bằng Docker.](https://media.aiengineerblog.com/posts/docker-co-ban-cho-python-dev/tech-stack.svg?v=6)
 
 Mỗi phần việc như vậy, trong Docker, gọi là một service.
 
@@ -102,7 +103,7 @@ volumes:
 
 Ánh xạ file trên ra sơ đồ cho dễ hình dung:
 
-![Sơ đồ kiến trúc docker-compose: ba service web, api, db nằm trong một mạng Docker nội bộ; port mapping mở cửa từ máy thật vào container; volume db_data giữ dữ liệu của db.](https://media.aiengineerblog.com/posts/docker-co-ban-cho-python-dev/compose-architecture.svg?v=6)
+![Sơ đồ kiến trúc docker-compose: ba service web, api, db nằm trong một mạng Docker nội bộ; port mapping mở cửa từ máy thật vào container; volume db_data giữ dữ liệu của db.](https://media.aiengineerblog.com/posts/docker-co-ban-cho-python-dev/compose-architecture.svg?v=7)
 
 Đọc từng khối trong file:
 
@@ -137,7 +138,7 @@ Khi chạy, Docker Compose tạo MỘT mạng riêng nội bộ và bỏ cả ba
 
 Điểm khiến người mới vấp nhiều nhất: trình duyệt KHÔNG nằm trong mạng Docker. Nó chạy trên máy thật của người dùng, nên nó không hiểu cái tên `api`. Hãy nhìn một request đi trọn vòng:
 
-![Luồng một request: trình duyệt (ngoài mạng Docker) gọi localhost:3000 tới web; server web gọi api:8000; api gọi db:5432; dữ liệu trả ngược lại thành JSON rồi HTML. Trình duyệt không bao giờ gọi thẳng api.](https://media.aiengineerblog.com/posts/docker-co-ban-cho-python-dev/request-flow.svg?v=5)
+![Luồng một request: trình duyệt (ngoài mạng Docker) gọi localhost:3000 tới web; server web gọi api:8000; api gọi db:5432; dữ liệu trả ngược lại thành JSON rồi HTML. Trình duyệt không bao giờ gọi thẳng api.](https://media.aiengineerblog.com/posts/docker-co-ban-cho-python-dev/request-flow.svg?v=6)
 
 Đọc theo số:
 
@@ -211,7 +212,7 @@ EXPOSE 3000
 CMD ["node", "server.js"]
 ```
 
-![Multi-stage build của frontend: stage builder cài thư viện và chạy npm run build để sinh thành phẩm; stage runner chỉ chép sang các thành phẩm cần để chạy, nên image cuối gọn và nhỏ.](https://media.aiengineerblog.com/posts/docker-co-ban-cho-python-dev/multi-stage-build.svg?v=5)
+![Multi-stage build của frontend: stage builder cài thư viện và chạy npm run build để sinh thành phẩm; stage runner chỉ chép sang các thành phẩm cần để chạy, nên image cuối gọn và nhỏ.](https://media.aiengineerblog.com/posts/docker-co-ban-cho-python-dev/multi-stage-build.svg?v=6)
 
 > Multi-stage build: một Dockerfile có nhiều chặng (`FROM ... AS ten`). Chặng đầu là nơi làm việc bừa bộn (cài đủ thư viện, biên dịch), chặng cuối chỉ chép sang những thành phẩm cần để chạy. Chỉ image của chặng cuối được giữ lại; các chặng tạm bị bỏ tự động, không phải xóa tay.
 

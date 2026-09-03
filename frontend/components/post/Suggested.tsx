@@ -1,17 +1,13 @@
 import Link from "next/link";
 import type { Post } from "@/lib/types";
-import { Tag } from "@/components/ui/Tag";
-import { Thumbnail } from "./Thumbnail";
-import { formatYearMonth, readingTimeMinutes } from "@/lib/format";
 
-// Suggested reading in the article rail. Each entry is a small editorial card:
-// a wide cover on top, the title, and a compact meta line (topic, date, reading
-// time). Kept to a few cards so the rail stays light next to the table of
-// contents.
+// "Read next" in the article rail, under the table of contents. Deliberately
+// text-only: the rail should stay quiet next to the body, and the cover art
+// already appears full-bleed at the top of every article.
 export function Suggested({
   posts,
   currentSlug,
-  limit = 3,
+  limit = 2,
 }: {
   posts: Post[];
   currentSlug: string;
@@ -21,47 +17,66 @@ export function Suggested({
   if (others.length === 0) return null;
 
   return (
-    <div>
-      <span className="block font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted">
-        Suggested
+    <div className="border-t border-hairline pt-4">
+      <span className="block text-[9.5px] font-bold uppercase leading-none tracking-[0.2em] text-muted">
+        Đọc tiếp
       </span>
-      <ul className="mt-4 space-y-3">
-        {others.map((post) => {
-          const minutes = readingTimeMinutes(post.body);
-          // Prefer the subject (topic) tag over a difficulty chip for context.
-          const topic = post.tags?.find((t) => t.variant === "topic") ?? post.tags?.[0];
-          return (
-            <li key={post.slug}>
-              <Link
-                href={`/blog/${post.slug}`}
-                className="group block overflow-hidden rounded-[13px] border border-hairline bg-surface transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--accent-line)] hover:shadow-[0_8px_22px_-14px_rgba(22,24,29,0.3)]"
-              >
-                <div className="aspect-[16/9] w-full border-b border-hairline">
-                  <Thumbnail
-                    src={post.thumbnail}
-                    alt={post.title}
-                    rounded="rounded-none"
-                    className="h-full w-full"
-                  />
-                </div>
-                <div className="flex flex-col gap-2.5 px-3.5 pb-3.5 pt-3">
-                  <h4 className="line-clamp-2 font-serif text-[15px] font-medium leading-[1.32] tracking-[-0.01em] text-ink transition-colors group-hover:text-accent">
-                    {post.title}
-                  </h4>
-                  <div className="flex items-center gap-2">
-                    {topic && <Tag {...topic} />}
-                    <span className="ml-auto flex items-center gap-1.5 font-mono text-[11px] text-muted">
-                      <span>{formatYearMonth(post.created_at)}</span>
-                      <span className="inline-block h-2.5 w-px bg-hairline" />
-                      <span>{minutes} min</span>
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            </li>
-          );
-        })}
+      <ul className="m-0 mt-3 list-none space-y-2.5 p-0">
+        {others.map((post) => (
+          <li key={post.slug}>
+            <Link
+              href={`/blog/${post.slug}`}
+              className="block text-[13px] font-semibold leading-snug text-ink transition-colors hover:text-accent"
+            >
+              {post.title}
+            </Link>
+          </li>
+        ))}
       </ul>
+    </div>
+  );
+}
+
+// The ink field at the foot of an article: previous post on the left, next on
+// the right. Replaces the old "Back to Blog" link, which was a dead end.
+export function PrevNext({
+  prev,
+  next,
+}: {
+  prev?: Post | null;
+  next?: Post | null;
+}) {
+  if (!prev && !next) return null;
+
+  return (
+    <div className="grid border-t-2 border-rule bg-ink text-ink-invert md:grid-cols-2">
+      {prev ? (
+        <Link
+          href={`/blog/${prev.slug}`}
+          className="group border-r border-[rgba(243,242,242,0.2)] px-14 py-[34px]"
+        >
+          <span className="block text-[9.5px] font-bold uppercase leading-none tracking-[0.2em] text-[rgba(243,242,242,0.5)]">
+            ← Bài trước
+          </span>
+          <span className="mt-3 block text-[24px] font-bold leading-tight tracking-[-0.02em] transition-colors group-hover:text-accent">
+            {prev.title}
+          </span>
+        </Link>
+      ) : (
+        <span />
+      )}
+      {next ? (
+        <Link href={`/blog/${next.slug}`} className="group px-14 py-[34px] text-right">
+          <span className="block text-[9.5px] font-bold uppercase leading-none tracking-[0.2em] text-accent">
+            Bài sau →
+          </span>
+          <span className="mt-3 block text-[24px] font-bold leading-tight tracking-[-0.02em] transition-colors group-hover:text-accent">
+            {next.title}
+          </span>
+        </Link>
+      ) : (
+        <span />
+      )}
     </div>
   );
 }

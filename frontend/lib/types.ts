@@ -8,9 +8,12 @@ export type Post = {
   body: string;
   created_at: string;
   tags?: PostTag[];
-  // Optional path to a thumbnail image (e.g. "/images/posts/<slug>.jpg"). When
-  // absent, the UI renders a placeholder box so layout is easy to tune first.
+  // Small card thumbnail (techstack logos only), sized to read in the 150x88
+  // list cells. When absent, the UI renders a placeholder box.
   thumbnail?: string;
+  // Large 16/9 cover for the full-bleed bands (home masthead, article top, blog
+  // lead). Falls back to `thumbnail` when a post has not supplied one.
+  cover?: string;
 };
 
 // A single tag on a post. "topic" is a neutral knowledge tag; the others are

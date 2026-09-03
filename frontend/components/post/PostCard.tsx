@@ -2,105 +2,147 @@ import Link from "next/link";
 import type { Post } from "@/lib/types";
 import { Tag, TagList } from "@/components/ui/Tag";
 import { Thumbnail } from "@/components/post/Thumbnail";
-import { formatYearMonth, readingTimeMinutes } from "@/lib/format";
+import { formatDayMonth, formatDotDate, readingTimeMinutes, yearOf } from "@/lib/format";
 
-function ArrowRight() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path
-        d="M3 8h9M8.5 4l4 4-4 4"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
+// Post lists in this design are tables, not cards: a row of aligned columns
+// divided by 1px rules, with the whole row tinting on hover. Three shapes are
+// used across the site.
 
-// Featured post: a tinted card used for the most recent or pinned article.
-// The right-hand rail carries reading time, set off by a hairline border,
-// echoing the approved mockup's editorial "sidebar" treatment.
-export function FeaturedPost({ post }: { post: Post }) {
+// The home page row: date, cover, title with summary and tags, reading time.
+export function PostRow({ post }: { post: Post }) {
   const tags = post.tags ?? [];
   const minutes = readingTimeMinutes(post.body);
+
   return (
     <Link
       href={`/blog/${post.slug}`}
-      className="group block rounded-card border p-7 md:p-8"
-      style={{ background: "var(--accent-wash)", borderColor: "var(--accent-line)" }}
+      className="grid grid-cols-[96px_150px_1fr_108px] items-start gap-7 border-b border-hairline px-14 py-[22px] transition-colors last:border-b-0 hover:bg-accent-tint-soft"
     >
-      <Thumbnail
-        src={post.thumbnail}
-        alt={post.title}
-        className="mb-6 aspect-[16/8] w-full"
-      />
-      <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-9">
-        <div className="flex-1">
-          <h3 className="font-serif text-[28px] font-medium leading-[1.12] tracking-[-0.017em] text-ink md:text-[30px]">
-            {post.title}
-          </h3>
-          {post.summary && (
-            <p className="mt-2.5 max-w-xl text-[15.5px] leading-relaxed text-muted">
-              {post.summary}
-            </p>
-          )}
-          <div className="mt-5 flex flex-wrap items-center gap-2.5">
-            <span className="font-mono text-[12.5px] text-muted">
-              {formatYearMonth(post.created_at)}
-            </span>
-            <TagList tags={tags} />
-            <span className="inline-flex shrink-0 items-center gap-1.5 text-[14px] font-medium text-accent transition-colors group-hover:text-accent-hover">
-              Read <ArrowRight />
-            </span>
-          </div>
-        </div>
-        <div
-          className="flex shrink-0 flex-row gap-5 border-t pt-4 md:w-[130px] md:flex-col md:gap-3 md:border-l md:border-t-0 md:pl-6 md:pt-0"
-          style={{ borderColor: "var(--accent-line)" }}
-        >
-          <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted">
-            Featured
-          </span>
-          <span className="font-mono text-[13px] text-ink-body">{minutes} min read</span>
-        </div>
+      <span className="pt-1 text-[11px] font-semibold uppercase leading-[1.3] tracking-[0.1em] text-muted">
+        {formatDayMonth(post.created_at)}
+        <br />
+        {yearOf(post.created_at)}
+      </span>
+      <div className="h-[88px] border border-[rgba(32,30,29,0.3)]">
+        <Thumbnail src={post.thumbnail} alt={post.title} />
       </div>
+      <div>
+        <h3 className="text-[22px] font-semibold leading-tight tracking-[-0.02em] text-ink">
+          {post.title}
+        </h3>
+        {post.summary && (
+          <p className="mt-2 max-w-[520px] font-serif text-[15px] leading-relaxed text-muted">
+            {post.summary}
+          </p>
+        )}
+        <TagList tags={tags} className="mt-3" />
+      </div>
+      <span className="whitespace-nowrap pt-1 text-right text-[11px] font-bold uppercase leading-[1.4] tracking-[0.1em] text-ink">
+        {minutes} phút
+        <br />
+        <span className="text-accent-deep">Đọc</span>
+      </span>
     </Link>
   );
 }
 
-// Compact post row for lists. Bleeds to the edge of the container on hover
-// (negative margin matching the horizontal padding) so the tint reaches the
-// full row width, not just the text column.
-export function PostRow({ post }: { post: Post }) {
-  const firstTag = post.tags?.[0];
+// The blog index row: a numbered variant, with the tag column split out so the
+// five rows read as an ordered table.
+export function NumberedRow({ post, index }: { post: Post; index: number }) {
+  const tags = post.tags ?? [];
+  const minutes = readingTimeMinutes(post.body);
+
   return (
     <Link
       href={`/blog/${post.slug}`}
-      className="group -mx-4 grid grid-cols-[64px_1fr] items-baseline gap-5 rounded-[10px] border-b border-hairline px-4 py-6 transition-colors last:border-b-0 hover:bg-[rgba(22,24,29,0.025)] md:grid-cols-[88px_92px_1fr_auto] md:items-start md:gap-7"
+      className="grid grid-cols-[52px_100px_1fr_200px_96px] items-start gap-6 border-b border-hairline px-14 py-6 transition-colors last:border-b-0 hover:bg-accent-tint-soft"
     >
-      <span className="font-mono text-[12.5px] text-muted md:pt-0.5">
-        {formatYearMonth(post.created_at)}
+      <span className="pt-[5px] text-[15px] font-extrabold leading-none tracking-[0.06em] text-[rgba(32,30,29,0.35)]">
+        {String(index).padStart(2, "0")}
       </span>
-      <Thumbnail
-        src={post.thumbnail}
-        alt={post.title}
-        rounded="rounded-[8px]"
-        className="hidden h-[58px] w-[92px] md:block"
-      />
-      <span className="flex flex-col gap-1.5">
-        <span className="font-serif text-[20px] font-medium leading-tight tracking-[-0.01em] text-ink transition-colors group-hover:text-accent md:text-[21px]">
+      <span className="pt-1.5 text-[11px] font-semibold uppercase leading-[1.4] tracking-[0.1em] text-muted">
+        {formatDayMonth(post.created_at)}
+        <br />
+        {yearOf(post.created_at)}
+      </span>
+      <div>
+        <h3 className="text-[23px] font-semibold leading-tight tracking-[-0.02em] text-ink">
           {post.title}
-        </span>
+        </h3>
         {post.summary && (
-          <span className="text-[15px] leading-normal text-muted">{post.summary}</span>
+          <p className="mt-2 max-w-[520px] font-serif text-[15px] leading-relaxed text-muted">
+            {post.summary}
+          </p>
         )}
+      </div>
+      <TagList tags={tags} className="pt-1" />
+      <span className="whitespace-nowrap pt-[5px] text-right text-[11px] font-bold uppercase leading-none tracking-[0.1em] text-ink">
+        {minutes} phút
       </span>
-      {firstTag && (
-        <span className="col-span-2 flex md:col-span-1 md:justify-end md:pt-0.5">
-          <Tag {...firstTag} />
+    </Link>
+  );
+}
+
+// The topic page row: the tightest of the three, date and title and time only.
+export function CompactRow({ post }: { post: Post }) {
+  const minutes = readingTimeMinutes(post.body);
+  return (
+    <Link
+      href={`/blog/${post.slug}`}
+      className="grid grid-cols-[100px_1fr_120px] items-baseline gap-6 border-b border-hairline px-14 py-5 transition-colors last:border-b-0 hover:bg-accent-tint-soft"
+    >
+      <span className="whitespace-nowrap text-[11px] font-semibold uppercase leading-none tracking-[0.1em] text-muted">
+        {formatDotDate(post.created_at)}
+      </span>
+      <span className="text-[21px] font-semibold leading-tight tracking-[-0.02em] text-ink">
+        {post.title}
+      </span>
+      <span className="whitespace-nowrap text-right text-[11px] font-bold uppercase leading-none tracking-[0.1em] text-ink">
+        {minutes} phút
+      </span>
+    </Link>
+  );
+}
+
+// The lead post on the blog index: two columns, cover on the right, and a meta
+// rule under the copy. Not a card, a spread.
+export function LeadPost({ post }: { post: Post }) {
+  const tags = post.tags ?? [];
+  const minutes = readingTimeMinutes(post.body);
+
+  return (
+    <Link
+      href={`/blog/${post.slug}`}
+      className="grid border-b-2 border-rule md:grid-cols-[1.05fr_1fr]"
+    >
+      <div className="px-14 py-9">
+        <span className="block text-[12px] font-extrabold leading-none tracking-[0.18em] text-accent-deep">
+          01
         </span>
-      )}
+        <h2 className="mt-3.5 text-[38px] font-bold leading-[1.06] tracking-[-0.03em] text-ink">
+          {post.title}
+        </h2>
+        {post.summary && (
+          <p className="mt-3.5 max-w-[480px] font-serif text-[17px] leading-relaxed text-muted">
+            {post.summary}
+          </p>
+        )}
+        <TagList tags={tags} className="mt-5" />
+        <div className="mt-6 flex items-center gap-4 border-t border-hairline pt-4">
+          <span className="text-[11px] font-semibold uppercase leading-none tracking-[0.12em] text-muted">
+            {formatDotDate(post.created_at)}
+          </span>
+          <span className="text-[11px] font-semibold uppercase leading-none tracking-[0.12em] text-muted">
+            {minutes} phút
+          </span>
+          <span className="text-[11px] font-bold uppercase leading-none tracking-[0.12em] text-accent-deep">
+            Đọc bài này
+          </span>
+        </div>
+      </div>
+      <div className="min-h-[340px] border-l-2 border-rule">
+        <Thumbnail src={post.cover} alt={post.title} fit="cover" priority />
+      </div>
     </Link>
   );
 }

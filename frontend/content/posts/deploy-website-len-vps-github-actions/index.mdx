@@ -9,14 +9,15 @@ tags:
     variant: "topic"
   - label: "Trung bình"
     variant: "mid"
-thumbnail: "https://media.aiengineerblog.com/posts/deploy-website-len-vps-github-actions/cover.svg?v=5"
+thumbnail: "https://media.aiengineerblog.com/posts/deploy-website-len-vps-github-actions/thumbnail.svg?v=1"
+cover: "https://media.aiengineerblog.com/posts/deploy-website-len-vps-github-actions/cover.svg?v=6"
 ---
 
 Chữ "CI/CD" thì ai làm web cũng nghe. Chỗ hay mơ hồ là *luồng chạy thật*: máy nào làm việc gì, vì sao code bị build tới hai lần, và làm sao để server chạy đúng y hệt bản code đã qua kiểm tra chứ không phải một bản gần giống. Bài này đi theo một lần `git push` từ đầu tới lúc site cập nhật.
 
 Lấy trang bạn đang đọc làm ví dụ. Giống phần lớn dự án, mỗi lần đẩy code lên GitHub, bản chạy thật trên server tự cập nhật theo, không ai phải SSH vào gõ tay. Toàn bộ việc đó do một *pipeline* lo, và nó gọn hơn bạn tưởng.
 
-![The full pipeline: a git push triggers GitHub Actions on a throwaway runner. CI runs fast pass/fail checks; CD builds a Docker image and pushes it to the GHCR registry. The deploy step then SSHes into the VPS, which pulls that exact image and runs it.](https://media.aiengineerblog.com/posts/deploy-website-len-vps-github-actions/pipeline-flow.svg?v=3)
+![The full pipeline: a git push triggers GitHub Actions on a throwaway runner. CI runs fast pass/fail checks; CD builds a Docker image and pushes it to the GHCR registry. The deploy step then SSHes into the VPS, which pulls that exact image and runs it.](https://media.aiengineerblog.com/posts/deploy-website-len-vps-github-actions/pipeline-flow.svg?v=4)
 
 Cách kể của bài: đọc thẳng các file cấu hình thật của pipeline (`ci.yml`, `cd.yml` và file compose dành cho server) rồi giải thích từng khối. Chuyện dựng hạ tầng lần đầu (tạo khóa, bấm dashboard) không phải trọng tâm.
 
@@ -90,7 +91,7 @@ Còn một câu hỏi quan trọng: image nào ứng với code nào? Nếu ch�
 
 Cách làm: mỗi image mang hai nhãn. Một là *git SHA* của commit (chuỗi băm nhận diện đúng một commit), bất biến, gắn cứng vào đúng bản code đó. Hai là `latest`, di động, luôn trỏ về bản mới nhất.
 
-![One image, two tags. The newest commit (a1b2c3d) is built once into a single image. That image gets an immutable SHA tag (:a1b2c3d, pinned to that one commit forever) and a moving :latest tag. Deploy pins the SHA tag so the server runs the exact tested bytes; rollback just points the server back at an older SHA tag.](https://media.aiengineerblog.com/posts/deploy-website-len-vps-github-actions/image-tag.svg?v=1)
+![One image, two tags. The newest commit (a1b2c3d) is built once into a single image. That image gets an immutable SHA tag (:a1b2c3d, pinned to that one commit forever) and a moving :latest tag. Deploy pins the SHA tag so the server runs the exact tested bytes; rollback just points the server back at an older SHA tag.](https://media.aiengineerblog.com/posts/deploy-website-len-vps-github-actions/image-tag.svg?v=2)
 
 Cái nhãn SHA là chỗ đáng học nhất:
 

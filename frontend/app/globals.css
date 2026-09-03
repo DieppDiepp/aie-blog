@@ -9,28 +9,33 @@
   --color-surface: var(--surface);
   --color-ink: var(--ink);
   --color-ink-body: var(--ink-body);
+  --color-ink-invert: var(--ink-invert);
   --color-muted: var(--muted);
   --color-hairline: var(--hairline);
+  --color-rule: var(--rule);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
-  --color-accent-wash: var(--accent-wash);
-  --color-accent-line: var(--accent-line);
+  --color-accent-tint: var(--accent-tint);
+  --color-accent-tint-soft: var(--accent-tint-soft);
+  --color-accent-deep: var(--accent-deep);
 
   --font-serif: var(--font-newsreader), Georgia, "Times New Roman", serif;
-  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-archivo), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
 
   --radius-card: var(--card-radius);
 }
 
 /* Smooth in-page navigation; scroll-padding keeps anchor targets (Back to top,
-   and the article table of contents to come) clear of the sticky header. */
+   and the article table of contents) clear of the sticky header. */
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 5rem;
+  scroll-padding-top: 7rem;
 }
 
-/* Base page surface. */
+/* Base page surface. The page ground is a shade darker than the content
+   surface so a max-width layout would read as paper on a desk; this design is
+   full-bleed, so the two match. */
 body {
   background: var(--bg);
   color: var(--ink);
@@ -42,4 +47,25 @@ body {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* One visible focus treatment for the whole site: a square accent outline.
+   Never remove this without replacing it. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Readers who ask for less motion get none: the reveal component also checks
+   this in JS, this rule covers anything CSS-driven. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

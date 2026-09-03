@@ -6,25 +6,28 @@ import { usePathname } from "next/navigation";
 import { NAV_ITEMS, isActive } from "./nav";
 import { Wordmark } from "./Wordmark";
 import { TOPICS } from "@/lib/topics";
+import { SITE_STRAPLINE } from "@/lib/site";
 
 export type NavPost = { slug: string; title: string };
 
 // Visual-only language toggle. Real i18n comes later; for now it just reflects
-// the chosen language so the control looks and feels right.
+// the chosen language. Two square cells, flush against each other, no outer
+// frame: the ink strip behind them is the frame.
 function LangSwitch() {
   const [lang, setLang] = useState<"VI" | "EN">("VI");
   return (
-    <div className="flex items-center rounded-full border border-hairline p-0.5">
+    <div className="flex items-center">
       {(["VI", "EN"] as const).map((code) => (
         <button
           key={code}
           type="button"
           onClick={() => setLang(code)}
           aria-pressed={lang === code}
-          className={`rounded-full px-2.5 py-1 font-mono text-[11px] tracking-[0.04em] transition-colors ${
-            lang === code ? "" : "text-muted hover:text-ink"
+          className={`px-2 py-[5px] text-[10px] uppercase leading-none tracking-[0.14em] transition-colors ${
+            lang === code
+              ? "bg-accent font-bold text-white"
+              : "font-semibold text-[rgba(243,242,242,0.55)] hover:text-ink-invert"
           }`}
-          style={lang === code ? { background: "var(--ink)", color: "var(--bg)" } : undefined}
         >
           {code}
         </button>
@@ -36,28 +39,27 @@ function LangSwitch() {
 function Caret({ open }: { open: boolean }) {
   return (
     <svg
-      width="11"
-      height="11"
+      width="9"
+      height="9"
       viewBox="0 0 16 16"
       fill="none"
       aria-hidden="true"
       className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
     >
-      <path
-        d="M4 6l4 4 4-4"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
     </svg>
   );
 }
+
+const NAV_LINK = "pb-1.5 text-[11px] uppercase leading-none tracking-[0.14em] transition-colors";
+const NAV_ON = "border-b-2 border-accent font-bold text-ink";
+const NAV_OFF = "border-b-2 border-transparent font-medium text-muted hover:text-ink";
 
 type MenuEntry = { href: string; title: string; sub?: string };
 
 // A nav item that reveals a dropdown on hover/focus. Content is passed in so the
 // same shell serves both the Blog (recent posts) and Topics (fields) menus.
+// The panel is a 2px-framed square block with no shadow: nothing floats here.
 function NavDropdown({
   label,
   href,
@@ -90,9 +92,7 @@ function NavDropdown({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-current={active ? "page" : undefined}
-        className={`inline-flex items-center gap-1.5 ${
-          active ? "text-ink" : "text-muted transition-colors hover:text-ink"
-        }`}
+        className={`inline-flex items-center gap-1.5 ${NAV_LINK} ${active ? NAV_ON : NAV_OFF}`}
       >
         {label}
         <Caret open={open} />
@@ -101,27 +101,25 @@ function NavDropdown({
       {entries.length > 0 && (
         <div
           role="menu"
-          className={`absolute right-0 top-full pt-3 transition-all duration-150 ${
+          className={`absolute right-0 top-full z-50 pt-4 transition-all duration-150 ${
             open
               ? "pointer-events-auto translate-y-0 opacity-100"
               : "pointer-events-none -translate-y-1 opacity-0"
           }`}
         >
-          <div
-            className={`${width} rounded-card border border-hairline bg-surface p-2 shadow-[0_16px_40px_-24px_rgba(22,24,29,0.28)]`}
-          >
+          <div className={`${width} border-2 border-rule bg-bg p-1.5`}>
             {entries.map((entry) => (
               <Link
                 key={entry.href}
                 href={entry.href}
                 role="menuitem"
-                className="block rounded-[9px] px-3 py-2 transition-colors hover:bg-[rgba(47,95,224,0.06)]"
+                className="block px-3 py-2 transition-colors hover:bg-accent-tint-soft"
               >
-                <span className="block font-serif text-[15.5px] leading-snug text-ink-body">
+                <span className="block text-[15px] font-semibold leading-snug tracking-[-0.01em] text-ink">
                   {entry.title}
                 </span>
                 {entry.sub && (
-                  <span className="mt-0.5 block text-[12.5px] leading-snug text-muted">
+                  <span className="mt-1 block font-serif text-[13.5px] leading-snug text-muted">
                     {entry.sub}
                   </span>
                 )}
@@ -130,7 +128,7 @@ function NavDropdown({
             <Link
               href={footer.href}
               role="menuitem"
-              className="mt-1 block border-t border-hairline px-3 pb-1 pt-2.5 text-[13.5px] font-medium text-accent transition-colors hover:text-accent-hover"
+              className="mt-1 block border-t border-hairline px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-[0.14em] text-accent-deep transition-colors hover:text-accent"
             >
               {footer.label}
             </Link>
@@ -141,76 +139,79 @@ function NavDropdown({
   );
 }
 
-// Top navigation bar. Sticky, English labels, with real dropdowns under Blog
-// (recent posts) and Topics (fields).
+// Top navigation. An ink strip carries the strapline and the language toggle,
+// then the masthead row with the two-line wordmark and the nav. Both are
+// sticky, and the header sits on an opaque ground: no blur, nothing floats.
+// Below them is the double rule (2px + gap + 1px) that reads as newsprint.
 export function Header({ posts = [] }: { posts?: NavPost[] }) {
   const pathname = usePathname();
 
   return (
-    <header
-      id="top"
-      className="sticky top-0 z-40 border-b border-hairline backdrop-blur-md"
-      style={{ background: "color-mix(in srgb, var(--bg) 85%, transparent)" }}
-    >
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4 md:px-10">
-        <Wordmark />
-        <div className="flex items-center gap-5 md:gap-7">
-          <nav className="flex items-center gap-6 text-[15px] md:gap-8">
-            {NAV_ITEMS.map((item) => {
-              const active = isActive(pathname, item.href);
-
-              if (item.menu === "blog") {
-                return (
-                  <NavDropdown
-                    key={item.href}
-                    label={item.label}
-                    href={item.href}
-                    active={active}
-                    width="w-[320px]"
-                    entries={posts.slice(0, 5).map((p) => ({
-                      href: `/blog/${p.slug}`,
-                      title: p.title,
-                    }))}
-                    footer={{ href: "/blog", label: "View all posts" }}
-                  />
-                );
-              }
-
-              if (item.menu === "topics") {
-                return (
-                  <NavDropdown
-                    key={item.href}
-                    label={item.label}
-                    href={item.href}
-                    active={active}
-                    width="w-[300px]"
-                    entries={TOPICS.map((t) => ({
-                      href: `/topics/${t.slug}`,
-                      title: t.name,
-                      sub: t.blurb,
-                    }))}
-                    footer={{ href: "/topics", label: "Tất cả chủ đề" }}
-                  />
-                );
-              }
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-current={active ? "page" : undefined}
-                  className={
-                    active ? "text-ink" : "text-muted transition-colors hover:text-ink"
-                  }
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-          <LangSwitch />
-        </div>
+    <div id="top" className="sticky top-0 z-40">
+      <div className="flex items-center justify-between bg-ink px-14 py-2 text-ink-invert">
+        <span className="text-[10px] font-semibold uppercase leading-none tracking-[0.18em]">
+          {SITE_STRAPLINE}
+        </span>
+        <LangSwitch />
       </div>
-    </header>
+
+      <header className="flex items-end justify-between border-b-2 border-rule bg-bg px-14 pb-[18px] pt-6">
+        <Wordmark className="text-ink" />
+        <nav className="flex items-end gap-8 pb-1">
+          {NAV_ITEMS.map((item) => {
+            const active = isActive(pathname, item.href);
+
+            if (item.menu === "blog") {
+              return (
+                <NavDropdown
+                  key={item.href}
+                  label={item.label}
+                  href={item.href}
+                  active={active}
+                  width="w-[340px]"
+                  entries={posts.slice(0, 5).map((p) => ({
+                    href: `/blog/${p.slug}`,
+                    title: p.title,
+                  }))}
+                  footer={{ href: "/blog", label: "Xem tất cả bài viết" }}
+                />
+              );
+            }
+
+            if (item.menu === "topics") {
+              return (
+                <NavDropdown
+                  key={item.href}
+                  label={item.label}
+                  href={item.href}
+                  active={active}
+                  width="w-[320px]"
+                  entries={TOPICS.map((t) => ({
+                    href: `/topics/${t.slug}`,
+                    title: t.name,
+                    sub: t.blurb,
+                  }))}
+                  footer={{ href: "/topics", label: "Tất cả chủ đề" }}
+                />
+              );
+            }
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={`${NAV_LINK} ${active ? NAV_ON : NAV_OFF}`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+      </header>
+
+      {/* the second line of the double rule */}
+      <div className="h-0.5 border-b border-rule bg-bg" />
+    </div>
   );
 }

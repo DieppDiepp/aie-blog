@@ -9,7 +9,8 @@ tags:
     variant: "topic"
   - label: "Trung bình"
     variant: "mid"
-thumbnail: "https://media.aiengineerblog.com/posts/cloudflare-tunnel-gan-domain-cho-vps/cover.svg?v=4"
+thumbnail: "https://media.aiengineerblog.com/posts/cloudflare-tunnel-gan-domain-cho-vps/thumbnail.svg?v=1"
+cover: "https://media.aiengineerblog.com/posts/cloudflare-tunnel-gan-domain-cho-vps/cover.svg?v=5"
 ---
 
 Bạn có một website chạy trên máy chủ của mình, ví dụ một VPS thuê ngoài. Làm sao để cả thế giới vào xem được? Cách cổ điển là mở một cổng trên máy chủ rồi trỏ tên miền vào địa chỉ IP của nó. Cách đó phơi máy chủ ra Internet: IP bị lộ, và mỗi cổng mở là một cánh cửa để người lạ dò.
@@ -18,7 +19,7 @@ Cloudflare Tunnel làm theo hướng ngược lại. Máy chủ tự nối RA Cl
 
 Bài này giải thích cơ chế đằng sau chuyện đó, không đi qua các bước bấm nút. Trang bạn đang đọc là một ví dụ chạy đúng theo mô hình này, nên thỉnh thoảng sẽ lấy tên miền của nó (`aiengineerblog.com`) ra minh họa. Hai khái niệm nền tảng cần nắm là named tunnel và reverse proxy.
 
-![Request and tunnel flow: a browser makes an HTTPS request to the Cloudflare edge, which terminates TLS and hides the origin IP; the edge forwards the request through the tunnel to the cloudflared process inside the VPS, which passes it to the web service over plain HTTP on a private Docker network. The tunnel was dialed outbound by cloudflared, so the VPS keeps every inbound port closed.](https://media.aiengineerblog.com/posts/cloudflare-tunnel-gan-domain-cho-vps/tunnel-flow.svg?v=2)
+![Request and tunnel flow: a browser makes an HTTPS request to the Cloudflare edge, which terminates TLS and hides the origin IP; the edge forwards the request through the tunnel to the cloudflared process inside the VPS, which passes it to the web service over plain HTTP on a private Docker network. The tunnel was dialed outbound by cloudflared, so the VPS keeps every inbound port closed.](https://media.aiengineerblog.com/posts/cloudflare-tunnel-gan-domain-cho-vps/tunnel-flow.svg?v=3)
 
 Sơ đồ trên là toàn cảnh sẽ được mổ xẻ dần: người đọc bắt tay HTTPS với lớp edge của Cloudflare, edge giải mã rồi đẩy tiếp qua đường ống vào một tiến trình tên `cloudflared` nằm trong máy chủ, và tiến trình đó chuyển vào service `web` chạy website. Đường ống được máy chủ chủ động quay ra, nên không đầu nào phải mở cổng chờ.
 
@@ -42,7 +43,7 @@ Cái làm nên danh tính của named tunnel là token.
 
 Vì token là bí mật, câu hỏi kỹ thuật đáng quan tâm là: làm sao đưa nó vào tiến trình `cloudflared` mà không để lộ. Với một dự án chạy bằng Docker, cách thường dùng là truyền token qua biến môi trường, và giá trị thật đi qua ba nơi tách bạch. Sơ đồ dưới lấy đúng cấu trúc của trang này làm ví dụ:
 
-![How the tunnel token reaches cloudflared: the real value lives in a gitignored secret file on the server (.env.prod); the Docker compose file, tracked in Git, declares only the variable name; at startup Docker fills the value and sets it inside the cloudflared container, which reads it at runtime and dials out. It is passed as an environment variable, not on the command line.](https://media.aiengineerblog.com/posts/cloudflare-tunnel-gan-domain-cho-vps/token-wiring.svg?v=2)
+![How the tunnel token reaches cloudflared: the real value lives in a gitignored secret file on the server (.env.prod); the Docker compose file, tracked in Git, declares only the variable name; at startup Docker fills the value and sets it inside the cloudflared container, which reads it at runtime and dials out. It is passed as an environment variable, not on the command line.](https://media.aiengineerblog.com/posts/cloudflare-tunnel-gan-domain-cho-vps/token-wiring.svg?v=3)
 
 Đọc từ trái sang: một file cấu hình bí mật nằm trên máy chủ (ở dự án này đặt tên `.env.prod`) giữ giá trị token thật và không bao giờ được đưa lên Git. File mô tả Docker (`compose.prod.yml`, có trong Git) chỉ khai TÊN của biến, không chứa giá trị. Khi khởi động, Docker ghép tên với giá trị lấy từ file bí mật rồi đặt biến đó vào bên trong container `cloudflared`; chính binary `cloudflared` mới là thứ đọc biến và quay số ra edge.
 

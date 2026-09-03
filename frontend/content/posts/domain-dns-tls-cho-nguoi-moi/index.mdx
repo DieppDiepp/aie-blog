@@ -7,7 +7,8 @@ tags:
     variant: "topic"
   - label: "Cơ bản"
     variant: "easy"
-thumbnail: "https://media.aiengineerblog.com/posts/domain-dns-tls-cho-nguoi-moi/cover.svg?v=2"
+thumbnail: "https://media.aiengineerblog.com/posts/domain-dns-tls-cho-nguoi-moi/thumbnail.svg?v=1"
+cover: "https://media.aiengineerblog.com/posts/domain-dns-tls-cho-nguoi-moi/cover.svg?v=3"
 ---
 
 ## 0. Vấn đề
@@ -21,7 +22,7 @@ hóa). Bài này đi qua từng cái, rồi ghép lại thành cách làm với 
 Trước khi mổ từng mảnh, nhìn qua bức tranh chung: khi một người gõ tên site vào trình
 duyệt, chuyện gì thực sự xảy ra để họ tới đúng máy chủ và thấy ổ khóa.
 
-![How a named site with a lock reaches its server: the browser first resolves the name blog.tenban.com through DNS at Cloudflare, then opens an HTTPS connection to the Cloudflare edge, and the edge forwards the request inward to the origin server, which keeps no port open.](https://media.aiengineerblog.com/posts/domain-dns-tls-cho-nguoi-moi/serve-flow.svg?v=1)
+![How a named site with a lock reaches its server: the browser first resolves the name blog.tenban.com through DNS at Cloudflare, then opens an HTTPS connection to the Cloudflare edge, and the edge forwards the request inward to the origin server, which keeps no port open.](https://media.aiengineerblog.com/posts/domain-dns-tls-cho-nguoi-moi/serve-flow.svg?v=2)
 
 Cách kể của bài: đi từ khái niệm của từng mảnh rồi mới ghép chúng lại, chứ không phải
 cầm tay bấm từng nút trong dashboard. Hiểu vì sao ba mảnh này tồn tại và ăn khớp ra sao
@@ -100,7 +101,7 @@ mục 2, rằng một domain có hai vai tách bạch mà lúc mới thuê thư�
 > Ủy quyền DNS: chuyển quyền trả lời các câu hỏi DNS cho một domain từ nameserver mặc
 > định của nhà đăng ký sang nameserver của một bên khác, ở đây là Cloudflare.
 
-![The two separate jobs of a domain: a registrar is where you rent the name and renew it, while a nameserver is what answers where the name points. Pointing the nameserver at Cloudflare hands the DNS map to Cloudflare, which then also issues TLS.](https://media.aiengineerblog.com/posts/domain-dns-tls-cho-nguoi-moi/delegation.svg?v=1)
+![The two separate jobs of a domain: a registrar is where you rent the name and renew it, while a nameserver is what answers where the name points. Pointing the nameserver at Cloudflare hands the DNS map to Cloudflare, which then also issues TLS.](https://media.aiengineerblog.com/posts/domain-dns-tls-cho-nguoi-moi/delegation.svg?v=2)
 
 Đọc theo sơ đồ, một domain có hai việc rời nhau. Nhà đăng ký giữ hợp đồng thuê: quyền
 sở hữu và gia hạn cái tên. Nameserver giữ tấm bản đồ: nó trả lời tên này chỉ về đâu.

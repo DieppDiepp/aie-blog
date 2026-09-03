@@ -20,9 +20,22 @@ const SOCIALS: Social[] = [
   },
 ];
 
-export function SocialLinks({ className = "" }: { className?: string }) {
+// `tone="light"` is the version that sits on the paper ground (About page):
+// a 2px ink border. `tone="dark"` sits on the ink footer field.
+export function SocialLinks({
+  className = "",
+  tone = "light",
+}: {
+  className?: string;
+  tone?: "light" | "dark";
+}) {
+  const box =
+    tone === "light"
+      ? "h-[38px] w-[38px] border-2 border-ink text-ink hover:bg-ink hover:text-ink-invert"
+      : "h-[34px] w-[34px] border border-[rgba(243,242,242,0.35)] text-ink-invert hover:border-accent hover:text-accent";
+
   return (
-    <div className={`flex items-center gap-2.5 ${className}`}>
+    <div className={`flex items-center gap-2 ${className}`}>
       {SOCIALS.map((s) => (
         <a
           key={s.label}
@@ -31,9 +44,9 @@ export function SocialLinks({ className = "" }: { className?: string }) {
           rel="noopener noreferrer"
           aria-label={s.label}
           title={s.label}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-[9px] border border-hairline text-muted transition-colors hover:border-accent-line hover:text-accent"
+          className={`inline-flex items-center justify-center transition-colors ${box}`}
         >
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d={s.path} />
           </svg>
         </a>

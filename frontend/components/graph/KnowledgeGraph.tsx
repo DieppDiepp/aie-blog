@@ -18,21 +18,16 @@ type SimNode = {
   fixed: boolean; // roots are pinned to their hexagon corner
 };
 
-// One distinct hue per field, muted enough to sit on paper without feeling
-// industrial. Keys are topic slugs; Hệ thống keeps the site's blue accent.
-const ROOT_COLORS: Record<string, string> = {
-  "he-thong": "#2f5fe0",
-  toan: "#c2673f",
-  "machine-learning": "#1f9b7a",
-  "deep-learning": "#7c5cd6",
-  llm: "#c2952f",
-  other: "#8b9199",
-};
-const FALLBACK = "#8b9199";
-const colorOf = (slug: string) => ROOT_COLORS[slug] ?? FALLBACK;
+// This graph is monochrome by design: the old version gave each field its own
+// hue, which fought the rest of the system. Here a topic is a filled ink
+// SQUARE, a post is an outlined circle, topic-to-topic links are accent, and
+// topic-to-post links are thin ink. Emphasis comes from weight and opacity,
+// never from color.
+const TOPIC_SIZE = 24; // square side, in SVG units
+const POST_R = 7;
 
 // Post physics. Roots don't move (they anchor the corners); posts orbit their
-// root and repel each other.
+// root and repel each other. These four constants are tuned, leave them alone.
 const REP = 950;
 const REST = 66;
 const SPRING = 0.085;
@@ -47,7 +42,7 @@ export function KnowledgeGraph({ data }: { data: GraphData }) {
   const raf = useRef(0);
   const drag = useRef<{ id: string; moved: boolean } | null>(null);
 
-  const [size, setSize] = useState({ w: 960, h: 600 });
+  const [size, setSize] = useState({ w: 1280, h: 560 });
   const [, setTick] = useState(0);
   const [hover, setHover] = useState<string | null>(null);
   const router = useRouter();
@@ -168,7 +163,7 @@ export function KnowledgeGraph({ data }: { data: GraphData }) {
         label: n.label,
         href: n.href,
         cluster,
-        r: n.kind === "topic" ? 13 : 5.5,
+        r: n.kind === "topic" ? TOPIC_SIZE / 2 : POST_R,
         x: seed.x,
         y: seed.y,
         vx: 0,
@@ -269,171 +264,170 @@ export function KnowledgeGraph({ data }: { data: GraphData }) {
   const hoverNode = hover ? byId.get(hover) : null;
   const activeCluster = hoverNode ? hoverNode.cluster : null;
 
-  const hexPoints = geom.corners.map((c) => `${c.x},${c.y}`).join(" ");
-
   return (
-    <div ref={wrapRef} className="relative h-[66vh] min-h-[480px] w-full">
-      <svg
-        ref={svgRef}
-        viewBox={`0 0 ${size.w} ${size.h}`}
-        className="h-full w-full touch-none select-none"
-        role="group"
-        aria-label="Bản đồ tri thức: sáu chủ đề ở sáu góc, các bài viết nối vào chủ đề của mình"
+    <section className="relative border-b-2 border-rule">
+      {/* The 40px grid ground: a drafting sheet, not a canvas. */}
+      <div
+        ref={wrapRef}
+        className="relative h-[560px] w-full"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(32,30,29,0.09) 1px, transparent 1px), linear-gradient(90deg, rgba(32,30,29,0.09) 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
+        }}
       >
-        <defs>
-          <filter id="graph-soft" x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur stdDeviation="16" />
-          </filter>
-        </defs>
+        <svg
+          ref={svgRef}
+          viewBox={`0 0 ${size.w} ${size.h}`}
+          className="h-full w-full touch-none select-none"
+          role="group"
+          aria-label="Bản đồ tri thức: sáu chủ đề ở sáu góc, các bài viết nối vào chủ đề của mình"
+        >
+          {/* edges */}
+          <g>
+            {data.edges.map((e, i) => {
+              const p = byId.get(e.source);
+              const q = byId.get(e.target);
+              if (!p || !q) return null;
+              const bothTopics = p.kind === "topic" && q.kind === "topic";
+              const cluster = p.kind === "post" ? p.cluster : q.cluster;
+              const on = !activeCluster || activeCluster === cluster;
+              return (
+                <line
+                  key={i}
+                  x1={p.x}
+                  y1={p.y}
+                  x2={q.x}
+                  y2={q.y}
+                  stroke={bothTopics ? "var(--accent)" : "var(--ink)"}
+                  strokeWidth={bothTopics ? 2 : 1}
+                  strokeOpacity={on ? (activeCluster === cluster ? 0.7 : 0.35) : 0.1}
+                  style={{ transition: "stroke-opacity 250ms" }}
+                />
+              );
+            })}
+          </g>
 
-        {/* colored glow behind each corner */}
-        <g style={{ mixBlendMode: "multiply" }}>
-          {geom.corners.map((c) => {
-            const slug = c.id.replace("topic:", "");
-            const on = !activeCluster || activeCluster === slug;
-            return (
-              <circle
-                key={`glow-${c.id}`}
-                cx={c.x}
-                cy={c.y}
-                r={activeCluster === slug ? 66 : 52}
-                fill={colorOf(slug)}
-                opacity={on ? (activeCluster === slug ? 0.16 : 0.08) : 0.03}
-                filter="url(#graph-soft)"
-                style={{ transition: "opacity 250ms, r 250ms" }}
-              />
-            );
-          })}
-        </g>
+          {/* nodes */}
+          <g>
+            {arr.map((n) => {
+              const isTopic = n.kind === "topic";
+              const on = !activeCluster || activeCluster === n.cluster;
+              const corner = homes.current.get(n.id);
+              // A topic label sits just outside its corner, pushed radially out.
+              const outX = corner ? corner.x - geom.cx : 0;
+              const outY = corner ? corner.y - geom.cy : 0;
+              const outLen = Math.hypot(outX, outY) || 1;
+              const lx = (outX / outLen) * (n.r + 18);
+              const ly = (outY / outLen) * (n.r + 18);
+              const anchor = outX > 40 ? "start" : outX < -40 ? "end" : "middle";
+              const hot = activeCluster === n.cluster;
 
-        {/* hexagon frame + spokes */}
-        <g>
-          {geom.corners.map((c) => (
-            <line
-              key={`spoke-${c.id}`}
-              x1={geom.cx}
-              y1={geom.cy}
-              x2={c.x}
-              y2={c.y}
-              stroke="var(--hairline)"
-              strokeWidth={1}
-              opacity={0.4}
-            />
-          ))}
-          <polygon
-            points={hexPoints}
-            fill="none"
-            stroke="var(--hairline)"
-            strokeWidth={1.25}
-          />
-        </g>
-
-        {/* edges */}
-        <g>
-          {data.edges.map((e, i) => {
-            const p = byId.get(e.source);
-            const q = byId.get(e.target);
-            if (!p || !q) return null;
-            const cluster = p.kind === "post" ? p.cluster : q.cluster;
-            const active = !activeCluster || activeCluster === cluster;
-            return (
-              <line
-                key={i}
-                x1={p.x}
-                y1={p.y}
-                x2={q.x}
-                y2={q.y}
-                stroke={colorOf(cluster)}
-                strokeWidth={activeCluster === cluster ? 1.7 : 1}
-                strokeOpacity={active ? (activeCluster === cluster ? 0.85 : 0.32) : 0.1}
-                style={{ transition: "stroke-opacity 250ms, stroke-width 250ms" }}
-              />
-            );
-          })}
-        </g>
-
-        {/* nodes */}
-        <g>
-          {arr.map((n) => {
-            const isTopic = n.kind === "topic";
-            const color = colorOf(n.cluster);
-            const on = !activeCluster || activeCluster === n.cluster;
-            const corner = homes.current.get(n.id);
-            // Root label sits just outside its corner, pushed radially outward.
-            const outX = corner ? corner.x - geom.cx : 0;
-            const outY = corner ? corner.y - geom.cy : 0;
-            const outLen = Math.hypot(outX, outY) || 1;
-            const lx = (outX / outLen) * (n.r + 16);
-            const ly = (outY / outLen) * (n.r + 16);
-            const anchor = outX > 40 ? "start" : outX < -40 ? "end" : "middle";
-            return (
-              <g
-                key={n.id}
-                transform={`translate(${n.x}, ${n.y})`}
-                role="link"
-                tabIndex={0}
-                aria-label={n.label}
-                className="cursor-pointer outline-none"
-                style={{ opacity: on ? 1 : 0.28, transition: "opacity 250ms" }}
-                onPointerDown={(e) => onPointerDown(e, n)}
-                onPointerEnter={() => setHover(n.id)}
-                onPointerLeave={() => setHover((h) => (h === n.id ? null : h))}
-                onClick={() => open(n.href)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    router.push(n.href);
-                  }
-                }}
-              >
-                {isTopic ? (
-                  <>
+              return (
+                <g
+                  key={n.id}
+                  transform={`translate(${n.x}, ${n.y})`}
+                  role="link"
+                  tabIndex={0}
+                  aria-label={n.label}
+                  className="cursor-pointer outline-none"
+                  style={{ opacity: on ? 1 : 0.28, transition: "opacity 250ms" }}
+                  onPointerDown={(e) => onPointerDown(e, n)}
+                  onPointerEnter={() => setHover(n.id)}
+                  onPointerLeave={() => setHover((h) => (h === n.id ? null : h))}
+                  onClick={() => open(n.href)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      router.push(n.href);
+                    }
+                  }}
+                >
+                  {isTopic ? (
+                    <>
+                      <rect
+                        x={-TOPIC_SIZE / 2}
+                        y={-TOPIC_SIZE / 2}
+                        width={TOPIC_SIZE}
+                        height={TOPIC_SIZE}
+                        fill="var(--ink)"
+                      />
+                      {hot && (
+                        <rect
+                          x={-TOPIC_SIZE / 2 - 2}
+                          y={-TOPIC_SIZE / 2 - 2}
+                          width={TOPIC_SIZE + 4}
+                          height={TOPIC_SIZE + 4}
+                          fill="none"
+                          stroke="var(--accent)"
+                          strokeWidth={2}
+                        />
+                      )}
+                      <text
+                        x={lx}
+                        y={ly}
+                        dy={Math.abs(outY) > Math.abs(outX) ? (outY > 0 ? 14 : -6) : 4}
+                        textAnchor={anchor}
+                        fill="var(--ink)"
+                        style={{
+                          fontFamily: "var(--font-archivo), system-ui, sans-serif",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          letterSpacing: 1.4,
+                          textTransform: "uppercase",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        {n.label.toUpperCase()}
+                      </text>
+                    </>
+                  ) : (
                     <circle
-                      r={n.r}
-                      fill={color}
-                      fillOpacity={activeCluster === n.cluster ? 0.26 : 0.16}
-                      stroke={color}
-                      strokeWidth={1.8}
-                      style={{ transition: "fill-opacity 250ms" }}
+                      r={hover === n.id ? POST_R + 2 : POST_R}
+                      fill="var(--bg)"
+                      stroke="var(--ink)"
+                      strokeWidth={2}
+                      style={{ transition: "r 150ms" }}
                     />
-                    <circle r={3.2} fill={color} />
-                    <text
-                      x={lx}
-                      y={ly}
-                      dy={Math.abs(outY) > Math.abs(outX) ? (outY > 0 ? 14 : -6) : 4}
-                      textAnchor={anchor}
-                      fill="var(--ink)"
-                      style={{
-                        fontFamily: "var(--font-serif), Georgia, serif",
-                        fontSize: 15,
-                        fontWeight: 500,
-                        pointerEvents: "none",
-                      }}
-                    >
-                      {n.label}
-                    </text>
-                  </>
-                ) : (
-                  <circle
-                    r={hover === n.id ? 7.5 : 5.5}
-                    fill={color}
-                    fillOpacity={0.9}
-                    stroke="var(--bg)"
-                    strokeWidth={1.4}
-                    style={{ transition: "r 150ms" }}
-                  />
-                )}
-              </g>
-            );
-          })}
-        </g>
+                  )}
+                </g>
+              );
+            })}
+          </g>
 
-        {/* hover label for a post, on top of everything */}
-        {hoverNode && hoverNode.kind === "post" && (
-          <HoverChip node={hoverNode} size={size} />
-        )}
-      </svg>
-    </div>
+          {/* hover label for a post, on top of everything */}
+          {hoverNode && hoverNode.kind === "post" && (
+            <HoverChip node={hoverNode} size={size} />
+          )}
+        </svg>
+
+        {/* Legend: a framed block, bottom left, aligned to the page gutter. */}
+        <div className="absolute bottom-5 left-14 flex items-center gap-5 border-2 border-rule bg-bg px-4 py-3">
+          <LegendItem label="Chủ đề">
+            <span className="block h-[11px] w-[11px] bg-ink" />
+          </LegendItem>
+          <LegendItem label="Bài viết">
+            <span className="block h-[11px] w-[11px] rounded-full border-2 border-ink" />
+          </LegendItem>
+          <LegendItem label="Liên kết chủ đề">
+            <span className="block h-0.5 w-4 bg-accent" />
+          </LegendItem>
+        </div>
+
+        <p className="absolute bottom-5 right-14 text-[11px] font-medium uppercase leading-none tracking-[0.1em] text-muted">
+          Kéo nút để sắp lại, rê chuột để làm nổi vùng, bấm để mở
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function LegendItem({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <span className="flex items-center gap-2 text-[10px] font-semibold uppercase leading-none tracking-[0.14em] text-ink">
+      {children}
+      {label}
+    </span>
   );
 }
 
@@ -443,34 +437,24 @@ export function KnowledgeGraph({ data }: { data: GraphData }) {
 function HoverChip({ node, size }: { node: SimNode; size: { w: number; h: number } }) {
   const label = node.label.length > 60 ? `${node.label.slice(0, 59)}…` : node.label;
   const w = Math.min(label.length * 7 + 24, size.w - 16);
-  const h = 26;
+  const h = 28;
 
   const x = Math.max(8, Math.min(size.w - w - 8, node.x - w / 2));
   const above = node.y - node.r - 12 - h;
   const y = above < 8 ? node.y + node.r + 12 : above;
-  const cx = x + w / 2;
 
   return (
     <g pointerEvents="none">
-      <rect
-        x={x}
-        y={y}
-        width={w}
-        height={h}
-        rx={7}
-        fill="var(--surface)"
-        stroke="var(--hairline)"
-      />
+      <rect x={x} y={y} width={w} height={h} fill="var(--ink)" />
       <text
-        x={cx}
+        x={x + 12}
         y={y + h / 2}
         dy={4}
-        textAnchor="middle"
-        fill="var(--ink)"
+        fill="var(--ink-invert)"
         style={{
-          fontFamily: "var(--font-serif), Georgia, serif",
-          fontSize: 13,
-          fontWeight: 500,
+          fontFamily: "var(--font-archivo), system-ui, sans-serif",
+          fontSize: 12,
+          fontWeight: 600,
         }}
       >
         {label}

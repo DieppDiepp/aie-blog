@@ -13,6 +13,7 @@ type Frontmatter = {
   tags?: PostTag[];
   draft?: boolean;
   thumbnail?: string;
+  cover?: string;
 };
 
 async function readPostFile(
@@ -36,6 +37,9 @@ function toPost(slug: string, frontmatter: Frontmatter, content: string): Post {
     created_at: frontmatter.date,
     tags: frontmatter.tags,
     thumbnail: frontmatter.thumbnail,
+    // Fall back to the thumbnail so a post without a dedicated cover still
+    // fills its full-bleed bands.
+    cover: frontmatter.cover ?? frontmatter.thumbnail,
   };
 }
 

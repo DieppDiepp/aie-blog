@@ -4,10 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import type { TocItem } from "@/lib/toc";
 
 // Table of contents with scroll-spy. The active section is derived from each
-// heading's position relative to a fixed offset (header height + a little), and
-// the highlight glides between items via a color/border transition. When used
-// in the sticky rail (`scrollable`), the list caps its height and scrolls on
-// its own so a long outline never overflows the viewport.
+// heading's position relative to a fixed offset (sticky header height plus a
+// little), and the active row is marked with an accent rule on its left edge
+// and a faint accent tint. When used in the sticky rail (`scrollable`), the
+// list caps its height and scrolls on its own so a long outline never
+// overflows the viewport.
 export function Toc({
   items,
   scrollable = false,
@@ -16,12 +17,12 @@ export function Toc({
   scrollable?: boolean;
 }) {
   const [activeId, setActiveId] = useState<string | null>(items[0]?.id ?? null);
-  const listRef = useRef<HTMLUListElement>(null);
+  const listRef = useRef<HTMLOListElement>(null);
 
   // Track which heading is currently at the top of the reading area.
   useEffect(() => {
     if (items.length < 2) return;
-    const OFFSET = 110; // sticky header (~5rem) plus breathing room
+    const OFFSET = 130; // ink strip + masthead + double rule, plus breathing room
 
     let raf = 0;
     const recompute = () => {
@@ -71,16 +72,14 @@ export function Toc({
 
   return (
     <nav aria-label="Mục lục">
-      <span className="block font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted">
-        On this page
+      <span className="block border-b-2 border-rule pb-3 text-[9.5px] font-bold uppercase leading-none tracking-[0.2em] text-ink">
+        Mục lục
       </span>
-      <ul
+      <ol
         ref={listRef}
-        className={`mt-3 space-y-1.5 border-l border-hairline ${
-          scrollable ? "max-h-[52vh] overflow-y-auto pr-1" : ""
-        }`}
+        className={`m-0 list-none p-0 ${scrollable ? "max-h-[52vh] overflow-y-auto pr-1" : ""}`}
       >
-        {items.map((item) => {
+        {items.map((item, i) => {
           const active = item.id === activeId;
           return (
             <li key={item.id}>
@@ -88,20 +87,23 @@ export function Toc({
                 data-id={item.id}
                 href={`#${item.id}`}
                 aria-current={active ? "location" : undefined}
-                className={`-ml-px block border-l-2 py-0.5 text-[13.5px] leading-snug transition-all duration-300 ease-out ${
-                  item.level === 3 ? "pl-6" : "pl-4"
+                className={`flex gap-2.5 border-l-2 py-2.5 pl-2.5 text-[12.5px] leading-snug transition-colors duration-300 ${
+                  item.level === 3 ? "pl-5" : ""
                 } ${
                   active
-                    ? "border-accent font-medium text-ink"
-                    : "border-transparent text-muted hover:border-accent-line hover:text-ink"
+                    ? "border-accent bg-accent-tint-soft font-semibold text-ink"
+                    : "border-transparent font-medium text-muted hover:text-ink"
                 }`}
               >
+                <span className={active ? "text-accent" : ""}>
+                  {String(i + 1).padStart(2, "0")}
+                </span>
                 {item.text}
               </a>
             </li>
           );
         })}
-      </ul>
+      </ol>
     </nav>
   );
 }
